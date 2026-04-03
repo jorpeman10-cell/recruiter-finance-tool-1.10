@@ -272,39 +272,50 @@ def render_dashboard():
     
     with col1:
         color_90d = safety['color_90d']
+        # 财务恒等式展示
+        formula_90d = f"""
+        <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin-top: 15px; font-size: 0.85rem; color: #666;">
+            <div style="font-weight: bold; margin-bottom: 8px;">💰 财务恒等式（90天）</div>
+            <div>期初余额: {format_currency(safety['current_balance'])}</div>
+            <div style="color: #10B981;">+ 90天回款: {format_currency(safety['future_90d_collected'])}</div>
+            <div style="color: #10B981;">+ Forecast: {format_currency(safety['forecast_90d'])}</div>
+            <div style="color: #EF4444;">- 3个月成本: {format_currency(safety['monthly_cost'] * 3)}</div>
+            <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-weight: bold; color: #333;">
+                = 期末余额: {format_currency(safety['balance_90d'])}
+            </div>
+        </div>
+        """
         st.markdown(f"""
         <div style="background: {color_90d}; border-radius: 16px; padding: 30px; color: white; text-align: center;">
             <div style="font-size: 3rem; font-weight: bold;">{format_currency(safety['balance_90d'])}</div>
             <div style="font-size: 1.2rem; margin-top: 10px;">90天预测余额 ({safety['status_90d']})</div>
-            <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 8px;">
-                当前余额 + 90天回款 - 3个月成本
-            </div>
         </div>
+        {formula_90d}
         """, unsafe_allow_html=True)
-        
-        st.markdown("**90天构成明细：**")
-        st.write(f"• 当前现金余额: {format_currency(safety['current_balance'])}")
-        st.write(f"• 未来90天回款: {format_currency(safety['future_90d_collected'])}")
-        st.write(f"• 90天成本: {format_currency(safety['monthly_cost'] * 3)}")
     
     with col2:
         color_180d = safety['color_180d']
+        # 财务恒等式展示
+        formula_180d = f"""
+        <div style="background: #f8f9fa; border-radius: 12px; padding: 15px; margin-top: 15px; font-size: 0.85rem; color: #666;">
+            <div style="font-weight: bold; margin-bottom: 8px;">💰 财务恒等式（180天）</div>
+            <div>期初余额: {format_currency(safety['current_balance'])}</div>
+            <div style="color: #10B981;">+ 180天回款: {format_currency(safety['future_180d_collected'])}</div>
+            <div style="color: #10B981;">+ Forecast: {format_currency(safety['forecast_180d'])}</div>
+            <div style="color: #F59E0B;">+ 已逾期: {format_currency(safety.get('overdue_collected', 0))}</div>
+            <div style="color: #EF4444;">- 6个月成本: {format_currency(safety['monthly_cost'] * 6)}</div>
+            <div style="border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; font-weight: bold; color: #333;">
+                = 期末余额: {format_currency(safety['balance_180d'])}
+            </div>
+        </div>
+        """
         st.markdown(f"""
         <div style="background: {color_180d}; border-radius: 16px; padding: 30px; color: white; text-align: center;">
             <div style="font-size: 3rem; font-weight: bold;">{format_currency(safety['balance_180d'])}</div>
             <div style="font-size: 1.2rem; margin-top: 10px;">180天预测余额 ({safety['status_180d']})</div>
-            <div style="font-size: 0.9rem; opacity: 0.9; margin-top: 8px;">
-                当前余额 + 180天回款 - 6个月成本
-            </div>
         </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown("**180天构成明细：**")
-        st.write(f"• 当前现金余额: {format_currency(safety['current_balance'])}")
-        st.write(f"• 未来180天回款: {format_currency(safety['future_180d_collected'])}")
-        st.write(f"• 已逾期待回款: {format_currency(safety.get('overdue_collected', 0))}")
-        st.write(f"• 180天Forecast: {format_currency(safety['forecast_180d'])}")
-        st.write(f"• 180天成本: {format_currency(safety['monthly_cost'] * 6)}")
+        {formula_180d}
+        """
     
     st.markdown("---")
     
