@@ -16,6 +16,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from models import AdvancedRecruitmentAnalyzer, PositionLifecycle, CashFlowEvent
+from alert_page import render_alert_system
 
 st.set_page_config(
     page_title="猎头财务分析工具",
@@ -799,7 +800,7 @@ def render_whatif_simulator():
         p.actual_payment for p in analyzer.positions
         if p.payment_date and p.payment_date.year == today.year and p.payment_date <= today
     )
-    current_balance = cash_reserve + collected_revenue
+    current_balance = cash_reserve
     
     # 显示当前基准
     st.markdown("#### 📊 当前基准")
@@ -906,111 +907,16 @@ def render_whatif_simulator():
         st.success("✅ 暂无逾期款项，无需催收加速")
 
 
-def render_alert_system():
-    """渲染智能预警系统"""
-    st.markdown('<div class="main-header">🔔 智能预警系统</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">自动监控经营风险，及时推送预警通知</div>', unsafe_allow_html=True)
-    
-    analyzer = st.session_state.analyzer
-    
-    if not analyzer.positions:
-        st.info("📊 请上传成单数据以启用预警系统")
-        return
-    
-    # 设置当前实际现金余额（从session_state获取首页设置的值）
-    cash_reserve = analyzer.config.get('cash_reserve', 1800000)
-    # 优先使用首页设置的值，否则使用默认值
-    default_balance = st.session_state.get('home_current_balance', cash_reserve)
-    current_balance = st.number_input(
-        "当前现金余额 (元)",
-        value=int(default_balance),
-        step=100000,
-        help="已回款可能已消耗，请填入当前实际现金余额（如180万）",
-        key="alert_current_balance"
-    )
-    
-    # 获取所有预警
-    all_alerts = analyzer.get_all_alerts(current_balance=current_balance)
-    summary = analyzer.get_alert_summary(current_balance=current_balance)
-    
-    # 统计卡片
-    st.markdown("#### 📊 预警统计")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("🔴 紧急", summary['danger'])
-    with col2:
-        st.metric("🟡 警告", summary['warning'])
-    with col3:
-        st.metric("🔵 提示", summary['info'])
-    with col4:
-        st.metric("总计", summary['total'])
-    
-    st.markdown("---")
-    
-    # 预警详情
-    tabs = st.tabs(["现金流预警", "回款催收", "顾问绩效"])
-    
-    with tabs[0]:
-        cashflow_alerts = all_alerts['cashflow']
-        if cashflow_alerts:
-            for alert in cashflow_alerts:
-                color = "#ef4444" if alert['level'] == 'danger' else "#f59e0b"
-                st.markdown(f"""
-                <div style="background: white; border-left: 4px solid {color}; 
-                            padding: 15px; margin: 10px 0; border-radius: 8px;">
-                    <strong style="color: {color};">{alert['title']}</strong>
-                    <p>{alert['message']}</p>
-                    <p style="color: #6b7280; font-size: 0.9rem;">
-                        💡 {alert['action']} | 👤 {alert['responsible']} | 📅 {alert['due_date']}
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("✅ 现金流状况良好，暂无预警")
-    
-    with tabs[1]:
-        collection_alerts = all_alerts['collection']
-        if collection_alerts:
-            for alert in collection_alerts:
-                with st.expander(f"{alert['level_text']} {alert['title']}"):
-                    st.write(f"**详情:** {alert['message']}")
-                    st.write(f"**建议:** {alert['action']}")
-                    st.write(f"**负责人:** {alert['responsible']}")
-                    
-                    if 'items' in alert and alert['items']:
-                        st.write("**涉及职位:**")
-                        for item in alert['items']:
-                            days_text = f"逾期{abs(item['days'])}天" if item['days'] < 0 else f"{item['days']}天后"
-                            st.write(f"- {item['client']} - {item['consultant']}: "
-                                   f"{format_currency(item['amount'])} ({days_text})")
-        else:
-            st.success("✅ 回款正常，暂无催收预警")
-    
-    with tabs[2]:
-        consultant_alerts = all_alerts['consultant']
-        if consultant_alerts:
-            for alert in consultant_alerts:
-                color = "#ef4444" if alert['level'] == 'danger' else "#f59e0b" if alert['level'] == 'warning' else "#3b82f6"
-                st.markdown(f"""
-                <div style="background: white; border-left: 4px solid {color}; 
-                            padding: 15px; margin: 10px 0; border-radius: 8px;">
-                    <strong style="color: {color};">{alert['title']}</strong>
-                    <p>{alert['message']}</p>
-                    <p style="color: #6b7280; font-size: 0.9rem;">
-                        {alert['action']} | 负责人: {alert['responsible']}
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.success("✅ 顾问绩效正常，暂无预警")
-
-
 def load_default_data(analyzer):
     """自动加载默认数据文件（用于部署后无需上传即可查看）"""
     import os
     
     # 数据文件路径（相对于app.py）
-    base_path = os.path.join(os.path.dirname(__file__), '..', 'data_templates', '分析数据库')
+    base_path = os.path.join(os.path.dirname(__file__), '..', 'data_templates', 'analysis_db')
+    # 兼容旧的中文路径
+    legacy_path = os.path.join(os.path.dirname(__file__), '..', 'data_templates', '分析数据库')
+    if not os.path.exists(base_path) and os.path.exists(legacy_path):
+        base_path = legacy_path
     
     deal_file = os.path.join(base_path, '成单数据模板03.xlsx')
     consultant_file = os.path.join(base_path, '顾问数据模板03.xlsx')
@@ -1085,7 +991,7 @@ def main():
         render_whatif_simulator()
     
     with tab6:
-        render_alert_system()
+        render_alert_system(st.session_state.analyzer)
 
 
 if __name__ == "__main__":

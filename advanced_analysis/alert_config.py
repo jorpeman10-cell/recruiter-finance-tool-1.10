@@ -48,7 +48,17 @@ class AlertConfig:
         if os.path.exists(self.config_path):
             try:
                 with open(self.config_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    config = json.load(f)
+                    # 尝试解码密码（兼容旧版明文）
+                    password = config.get('smtp_password', '')
+                    if password:
+                        try:
+                            import base64
+                            decoded = base64.b64decode(password).decode('utf-8')
+                            config['smtp_password'] = decoded
+                        except Exception:
+                            pass  # 解码失败则保持原值（明文兼容）
+                    return config
             except Exception as e:
                 print(f"加载预警配置失败: {e}")
                 return self.DEFAULT_CONFIG.copy()
@@ -57,8 +67,15 @@ class AlertConfig:
     def save_config(self):
         """保存配置"""
         try:
+            import base64
+            config_to_save = self.config.copy()
+            password = config_to_save.get('smtp_password', '')
+            if password:
+                config_to_save['smtp_password'] = base64.b64encode(
+                    password.encode('utf-8')
+                ).decode('utf-8')
             with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, ensure_ascii=False, indent=2)
+                json.dump(config_to_save, f, ensure_ascii=False, indent=2)
             return True
         except Exception as e:
             print(f"保存预警配置失败: {e}")

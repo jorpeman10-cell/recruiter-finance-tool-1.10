@@ -1121,7 +1121,7 @@ class AdvancedRecruitmentAnalyzer:
         # 计算各职位的MC
         mc_values = []
         for p in self.positions:
-            cost = p.get_direct_cost(self.config)
+            cost = p.get_direct_cost(self.config, self.consultant_configs)
             mc = p.actual_payment - cost
             mc_values.append(mc)
         
@@ -1129,10 +1129,11 @@ class AdvancedRecruitmentAnalyzer:
         
         # 计算日均MC
         avg_mc_per_day = 0
-        if self.positions:
+        valid_positions = [p for p in self.positions if p.cycle_days > 0]
+        if valid_positions:
             total_mc_days = sum((p.actual_payment - p.get_direct_cost(self.config, self.consultant_configs)) / p.cycle_days 
-                               for p in self.positions if p.cycle_days > 0)
-            avg_mc_per_day = total_mc_days / len(self.positions)
+                               for p in valid_positions)
+            avg_mc_per_day = total_mc_days / len(valid_positions)
         
         return {
             'total_positions': len(self.positions),
@@ -1192,10 +1193,12 @@ class AdvancedRecruitmentAnalyzer:
         
         for p in self.positions:
             stage = p.current_stage
+            cost = p.get_direct_cost(self.config, self.consultant_configs)
+            mc = p.actual_payment - cost
             stage_data[stage]['职位数'] += 1
             stage_data[stage]['收入'] += p.actual_payment
-            stage_data[stage]['成本'] += p.direct_cost
-            stage_data[stage]['MC'] += p.marginal_contribution
+            stage_data[stage]['成本'] += cost
+            stage_data[stage]['MC'] += mc
         
         result = []
         for stage, data in stage_data.items():
@@ -1681,13 +1684,14 @@ class AdvancedRecruitmentAnalyzer:
             if p.is_successful:
                 d['deals'] += 1
                 d['revenue'] += p.actual_payment
-                d['mc'] += p.marginal_contribution
+                cost = p.get_direct_cost(self.config, self.consultant_configs)
+                d['mc'] += (p.actual_payment - cost)
                 if p.to_payment_days:
                     d['payment_cycles'].append(p.to_payment_days)
         
         result = []
         for name, data in consultant_data.items():
-            active_count = len([p for p in data['positions'] if p.status == '进行中'])
+            active_count = len([p for p in data['positions'] if p.status != '已关闭' or not p.payment_date])
             avg_offer_cycle = np.mean(data['offer_cycles']) if data['offer_cycles'] else 0
             avg_payment_cycle = np.mean(data['payment_cycles']) if data['payment_cycles'] else 0
             
@@ -1819,9 +1823,13 @@ class AdvancedRecruitmentAnalyzer:
             })
         
         # 4. 边际贡献预警
-        loss_positions = [p for p in self.positions if p.marginal_contribution < 0]
+        loss_positions = []
+        for p in self.positions:
+            cost = p.get_direct_cost(self.config, self.consultant_configs)
+            if (p.actual_payment - cost) < 0:
+                loss_positions.append(p)
         if len(loss_positions) > 3:
-            total_loss = sum(p.marginal_contribution for p in loss_positions)
+            total_loss = sum((p.actual_payment - p.get_direct_cost(self.config, self.consultant_configs)) for p in loss_positions)
             alerts.append({
                 'level': '🔴 紧急',
                 'category': '盈利能力',
@@ -1878,8 +1886,9 @@ class AdvancedRecruitmentAnalyzer:
         """按客户统计边际贡献"""
         client_data = defaultdict(lambda: {'count': 0, 'mc': 0, 'revenue': 0})
         for p in self.positions:
+            cost = p.get_direct_cost(self.config, self.consultant_configs)
             client_data[p.client_name]['count'] += 1
-            client_data[p.client_name]['mc'] += p.marginal_contribution
+            client_data[p.client_name]['mc'] += (p.actual_payment - cost)
             client_data[p.client_name]['revenue'] += p.actual_payment
         
         result = []
