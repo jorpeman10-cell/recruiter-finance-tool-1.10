@@ -315,7 +315,7 @@ def render_dashboard():
             <div style="font-size: 1.2rem; margin-top: 10px;">180天预测余额 ({safety['status_180d']})</div>
         </div>
         {formula_180d}
-        """
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
