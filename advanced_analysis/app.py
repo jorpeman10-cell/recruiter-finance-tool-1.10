@@ -17,6 +17,8 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from models import AdvancedRecruitmentAnalyzer, PositionLifecycle, CashFlowEvent
 from alert_page import render_alert_system
+from pages.real_finance_page import render_real_finance_page
+import auto_import
 
 st.set_page_config(
     page_title="猎头财务分析工具",
@@ -193,7 +195,58 @@ def render_sidebar():
                         st.error(f"同步失败: {str(e)[:100]}")
     
     st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔄 自动同步")
+    
+    with st.sidebar.expander("文件夹自动监控", expanded=False):
+        watched_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'watched')
+        watched_base = os.path.abspath(watched_base)
+        auto_import.ensure_watched_dirs(watched_base)
+        
+        st.write(f"**监控目录:** `{watched_base}`")
+        
+        if st.button("🔄 立即扫描", use_container_width=True, key="auto_scan_btn"):
+            with st.spinner("扫描中..."):
+                results = auto_import.scan_and_import(analyzer, watched_base)
+                if results:
+                    for r in results:
+                        if r['status'] == 'success':
+                            st.success(f"✓ [{r['type']}] {r['file']}: {r['message']}")
+                        elif r['status'] == 'failed':
+                            st.error(f"× {r['file']}: {r['message']}")
+                        else:
+                            st.info(f"- {r['file']}: {r['message']}")
+                else:
+                    st.info("未发现新文件")
+        
+        history = auto_import.get_import_history(watched_base)
+        if history:
+            st.write("**最近导入记录:**")
+            for h in history[:5]:
+                st.caption(f"{h['imported_at'][:10]} | {h['type']} | {h['file']} ({h['rows']}行)")
+        
+        if st.button("🗑️ 清空导入记录", type="secondary", use_container_width=True, key="clear_import_log_btn"):
+            auto_import.clear_import_log(watched_base)
+            st.success("已清空，下次扫描将重新导入所有文件")
+    
+    st.sidebar.markdown("---")
     st.sidebar.markdown("### ⚙️ 基础配置")
+    
+    # 核算模式切换
+    if 'use_real_costs' not in analyzer.config:
+        analyzer.config['use_real_costs'] = False
+    mode_options = {False: "假设模式 (3倍工资估算)", True: "真实财务模式 (实际工资/报销)"}
+    current_mode = analyzer.config.get('use_real_costs', False)
+    selected_mode = st.sidebar.radio(
+        "核算模式",
+        options=[False, True],
+        format_func=lambda x: mode_options[x],
+        index=0 if not current_mode else 1,
+        key="cost_mode_radio"
+    )
+    if selected_mode != current_mode:
+        analyzer.config['use_real_costs'] = selected_mode
+        st.sidebar.success(f"已切换到: {mode_options[selected_mode]}")
+        st.rerun()
     
     # 现金储备
     if 'cash_reserve' not in analyzer.config:
@@ -216,7 +269,7 @@ def render_sidebar():
     st.sidebar.markdown("---")
     
     # 数据摘要
-    if analyzer.positions or analyzer.forecast_positions:
+    if analyzer.positions or analyzer.forecast_positions or analyzer.real_cost_records:
         st.sidebar.markdown("### 📈 数据摘要")
         if analyzer.positions:
             st.sidebar.write(f"- 成单数据: {len(analyzer.positions)}条")
@@ -225,6 +278,9 @@ def render_sidebar():
             st.sidebar.write(f"- 在职顾问: {active_count}人")
         if analyzer.forecast_positions:
             st.sidebar.write(f"- Forecast: {len(analyzer.forecast_positions)}条")
+        if analyzer.real_cost_records:
+            real_summary = analyzer.get_real_cost_summary()
+            st.sidebar.write(f"- 真实财务: {real_summary['record_count']}条")
     else:
         st.sidebar.info("👆 请先上传数据文件")
 
@@ -966,13 +1022,14 @@ def main():
     render_sidebar()
     
     # 主内容区标签页
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "💰 现金流安全",
         "📊 顾问盈亏分析",
         "📈 Forecast预测",
         "📅 现金流日历",
         "🔮 情景模拟",
-        "🔔 智能预警"
+        "🔔 智能预警",
+        "📒 真实财务",
     ])
     
     with tab1:
@@ -992,6 +1049,9 @@ def main():
     
     with tab6:
         render_alert_system(st.session_state.analyzer)
+    
+    with tab7:
+        render_real_finance_page(st.session_state.analyzer)
 
 
 if __name__ == "__main__":

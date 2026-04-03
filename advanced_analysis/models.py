@@ -9,6 +9,12 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple
 from collections import defaultdict
+from real_finance import (
+    RealCostRecord,
+    calculate_position_real_costs,
+    get_consultant_real_costs,
+    calculate_monthly_real_summary,
+)
 
 
 @dataclass
@@ -383,6 +389,7 @@ class AdvancedRecruitmentAnalyzer:
         self.forecast_positions: List[ForecastPosition] = []  # 预测职位（在途单）
         self.cashflow_events: List[CashFlowEvent] = []
         self.consultant_configs: Dict[str, dict] = {}  # 顾问配置
+        self.real_cost_records: List[RealCostRecord] = []  # 真实财务成本记录
         
         # 配置参数
         self.config = {
@@ -405,6 +412,9 @@ class AdvancedRecruitmentAnalyzer:
             # 预警配置
             'cash_warning_months': 5,  # 现金流预警月数（红线 = 5个月储备金）
             'mc_warning_threshold': 0,  # 边际贡献预警阈值
+            
+            # 真实财务模式开关
+            'use_real_costs': False,  # False=假设模式(3倍工资), True=真实财务模式
         }
     
     def add_position(self, position: PositionLifecycle):
@@ -681,8 +691,35 @@ class AdvancedRecruitmentAnalyzer:
         return self.get_historical_payment_cycle()
     
     def estimate_monthly_cost(self) -> float:
-        """估算公司月度总成本（基于顾问3倍工资法）- 只计算在职顾问"""
-        # 如果有顾问配置，只计算在职顾问（is_active不为False）
+        """估算公司月度总成本（基于顾问3倍工资法 或 真实财务数据）- 只计算在职顾问"""
+        # 如果启用了真实财务模式且有真实成本记录，使用真实数据估算月均成本
+        if self.config.get('use_real_costs', False) and self.real_cost_records:
+            today = datetime.now()
+            # 取最近3个月的真实成本平均值作为月度估算
+            months_back = 3
+            start_month = datetime(today.year, today.month, 1)
+            for _ in range(months_back):
+                if start_month.month == 1:
+                    start_month = datetime(start_month.year - 1, 12, 1)
+                else:
+                    start_month = datetime(start_month.year, start_month.month - 1, 1)
+            
+            total_real = 0.0
+            count = 0
+            current = start_month
+            while current <= datetime(today.year, today.month, 1):
+                summary = calculate_monthly_real_summary((current.year, current.month), self.real_cost_records)
+                total_real += summary['total']
+                count += 1
+                if current.month == 12:
+                    current = datetime(current.year + 1, 1, 1)
+                else:
+                    current = datetime(current.year, current.month + 1, 1)
+            
+            avg_monthly = total_real / count if count > 0 else 0
+            return avg_monthly if avg_monthly > 0 else 1
+        
+        # 原有假设模式逻辑
         if self.consultant_configs:
             total = 0
             for name, config in self.consultant_configs.items():
@@ -2533,4 +2570,153 @@ class AdvancedRecruitmentAnalyzer:
                 f"  预测总收入: {total_revenue:,.0f}元",
                 f"  利润: {net_profit:,.0f}元，利润率: {profit_margin_str}"
             ]
+        }
+
+
+    # ============ 真实财务分析模块 ============
+    
+    def get_position_real_mc_analysis(self) -> pd.DataFrame:
+        """单职位真实边际贡献分析（使用真实财务数据）"""
+        if not self.positions or not self.real_cost_records:
+            return pd.DataFrame(columns=[
+                '职位ID', '客户', '职位', '顾问', '回款', '真实工资', '真实报销',
+                '真实固定', '直接成本', '真实总成本', '真实边际贡献', '周期天数'
+            ])
+        
+        active_consultants = set()
+        for name, config in self.consultant_configs.items():
+            if config.get('is_active', True):
+                active_consultants.add(name)
+        if not active_consultants:
+            active_consultants = set(p.consultant for p in self.positions if p.consultant)
+        active_count = max(1, len(active_consultants))
+        
+        data = []
+        for p in self.positions:
+            end_date = p.payment_date or p.closed_date or datetime.now()
+            costs = calculate_position_real_costs(
+                position_id=p.position_id,
+                consultant_name=p.consultant,
+                client_name=p.client_name,
+                start_date=p.created_date or end_date,
+                end_date=end_date,
+                all_records=self.real_cost_records,
+                active_consultant_count=active_count
+            )
+            data.append({
+                '职位ID': p.position_id,
+                '客户': p.client_name,
+                '职位': p.position_name,
+                '顾问': p.consultant,
+                '回款': p.actual_payment,
+                '真实工资': costs['salary'],
+                '真实报销': costs['reimburse'],
+                '真实固定': costs['fixed'],
+                '直接成本': costs['direct'],
+                '真实总成本': costs['total'],
+                '真实边际贡献': p.actual_payment - costs['total'],
+                '周期天数': p.cycle_days,
+            })
+        
+        return pd.DataFrame(data)
+    
+    def get_consultant_real_profit_analysis(self) -> pd.DataFrame:
+        """顾问真实盈亏分析（使用真实财务数据）"""
+        if not self.positions:
+            return pd.DataFrame()
+        
+        active_consultants = []
+        for name, config in self.consultant_configs.items():
+            if config.get('is_active', True):
+                active_consultants.append(name)
+        if not active_consultants:
+            active_consultants = list(set(p.consultant for p in self.positions if p.consultant))
+        
+        consultant_revenue = defaultdict(float)
+        for p in self.positions:
+            if p.consultant:
+                consultant_revenue[p.consultant] += p.actual_payment
+        
+        result = []
+        for consultant in active_consultants:
+            revenue = consultant_revenue.get(consultant, 0)
+            costs = get_consultant_real_costs(
+                consultant_name=consultant,
+                all_records=self.real_cost_records,
+            )
+            total_cost = costs['total']
+            profit = revenue - total_cost
+            margin = (profit / revenue * 100) if revenue > 0 else 0
+            
+            result.append({
+                '顾问': consultant,
+                '累计回款': revenue,
+                '真实工资': costs['salary'],
+                '真实报销': costs['reimburse'],
+                '真实总成本': total_cost,
+                '真实利润': profit,
+                '真实利润率': f"{margin:.1f}%" if revenue > 0 else '-',
+            })
+        
+        return pd.DataFrame(result).sort_values('真实利润', ascending=False)
+    
+    def get_monthly_real_summary_df(self) -> pd.DataFrame:
+        """月度真实财务汇总表"""
+        if not self.positions:
+            return pd.DataFrame()
+        
+        # 收集所有涉及的年月
+        months = set()
+        for p in self.positions:
+            if p.payment_date:
+                months.add((p.payment_date.year, p.payment_date.month))
+        for r in self.real_cost_records:
+            months.add((r.date.year, r.date.month))
+        
+        if not months:
+            return pd.DataFrame()
+        
+        # 按月汇总回款
+        monthly_revenue = defaultdict(float)
+        for p in self.positions:
+            if p.payment_date:
+                monthly_revenue[(p.payment_date.year, p.payment_date.month)] += p.actual_payment
+        
+        data = []
+        for ym in sorted(months):
+            summary = calculate_monthly_real_summary(ym, self.real_cost_records)
+            data.append({
+                '年月': f"{ym[0]}-{ym[1]:02d}",
+                '回款': monthly_revenue.get(ym, 0),
+                '真实工资': summary['salary'],
+                '真实报销': summary['reimburse'],
+                '真实固定': summary['fixed'],
+                '真实总成本': summary['total'],
+                '真实利润': monthly_revenue.get(ym, 0) - summary['total'],
+            })
+        
+        return pd.DataFrame(data)
+    
+    def get_real_cost_summary(self) -> Dict:
+        """真实财务数据汇总"""
+        if not self.real_cost_records:
+            return {
+                'has_data': False,
+                'salary': 0,
+                'reimburse': 0,
+                'fixed': 0,
+                'total': 0,
+            }
+        
+        salary = sum(r.amount for r in self.real_cost_records if r.category == 'salary')
+        reimburse = sum(r.amount for r in self.real_cost_records if r.category == 'reimburse')
+        fixed = sum(r.amount for r in self.real_cost_records if r.category == 'fixed')
+        
+        return {
+            'has_data': True,
+            'salary': salary,
+            'reimburse': reimburse,
+            'fixed': fixed,
+            'total': salary + reimburse + fixed,
+            'record_count': len(self.real_cost_records),
         }

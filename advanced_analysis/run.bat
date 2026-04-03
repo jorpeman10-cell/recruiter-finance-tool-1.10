@@ -27,13 +27,24 @@ if errorlevel 1 (
     pip install -r ../requirements.txt
 )
 
+:: 创建监控目录
+set WATCHED_DIR=%~dp0..\watched
+if not exist "%WATCHED_DIR%\deals" mkdir "%WATCHED_DIR%\deals"
+if not exist "%WATCHED_DIR%\consultants" mkdir "%WATCHED_DIR%\consultants"
+if not exist "%WATCHED_DIR%\forecast" mkdir "%WATCHED_DIR%\forecast"
+if not exist "%WATCHED_DIR%\real_finance\salary" mkdir "%WATCHED_DIR%\real_finance\salary"
+if not exist "%WATCHED_DIR%\real_finance\reimburse" mkdir "%WATCHED_DIR%\real_finance\reimburse"
+if not exist "%WATCHED_DIR%\real_finance\fixed" mkdir "%WATCHED_DIR%\real_finance\fixed"
+
 :: 运行应用
 echo [2/2] 启动进阶分析工具...
 echo.
 echo 应用将在浏览器中打开...
 echo 如未自动打开，请访问: http://localhost:8502
 echo.
+echo 提示: 可将Excel文件放入 %WATCHED_DIR% 目录实现自动导入
+echo.
 
-streamlit run app.py --server.port=8502
+python -m streamlit run app.py --server.port=8502
 
 pause
