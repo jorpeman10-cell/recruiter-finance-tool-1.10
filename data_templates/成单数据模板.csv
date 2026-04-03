@@ -1,0 +1,4 @@
+deal_id,client_name,candidate_name,position,consultant,deal_date,annual_salary,fee_rate,fee_amount,payment_status,actual_payment,payment_date
+D0001,阿里巴巴,张三,Java开发,顾问A,2024-01-15,500000,20,100000,已回款,100000,2024-02-15
+D0002,腾讯,李四,产品经理,顾问B,2024-02-20,600000,20,120000,部分回款,60000,2024-03-15
+D0003,字节跳动,王五,算法工程师,顾问A,2024-03-10,800000,22,176000,未回款,0,

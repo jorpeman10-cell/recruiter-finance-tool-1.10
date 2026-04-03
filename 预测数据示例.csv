@@ -1,0 +1,8 @@
+forecast_id,client_name,position,consultant,candidate_name,estimated_salary,fee_rate,estimated_fee,success_rate,stage,expected_close_date,note
+# 预测数据模板
+# 用于记录在途单和预测未来收入
+F001,阿里巴巴,Java架构师,顾问A,候选人A,800000,20,,70,面试中,2026-04-15,技术面试已通过
+F002,腾讯,产品经理,顾问B,候选人B,600000,20,,50,初期接触,2026-05-01,刚推荐简历
+F003,字节跳动,算法工程师,顾问A,候选人C,1000000,22,,80,offer谈判,2026-03-30,等待候选人确认
+F004,美团,运营总监,顾问C,,900000,20,,40,推荐简历,2026-04-30,正在筛选候选人
+F005,京东,前端负责人,顾问B,,700000,20,,60,面试中,2026-04-10,二面进行中

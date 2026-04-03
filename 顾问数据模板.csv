@@ -1,0 +1,9 @@
+name,base_salary,join_date,team,is_active,monthly_kpi,internal_base_salary
+# 顾问数据模板说明：
+# - base_salary: 真实底薪（用于真实成本计算）
+# - internal_base_salary: 内部核算基本月薪（用于给顾问展示的盈亏分析）
+#   如果为空，则使用 base_salary
+#   计算公式：顾问成本 = internal_base_salary × 3 × 1.2
+顾问A,10000,2023-01-15,互联网,True,60000,8000
+顾问B,12000,2023-03-01,互联网,True,80000,10000
+顾问C,15000,2022-08-20,金融,True,100000,12000

@@ -1,0 +1,26 @@
+deal_id,client_name,candidate_name,position,consultant,deal_date,annual_salary,fee_rate,fee_amount,payment_status,actual_payment,payment_date,prior_year_collection
+# 成单数据模板说明：
+# - 支持中英文列名，以下列名都可以识别：
+#   deal_id / 成单编号 / 编号
+#   client_name / 客户 / 客户名称
+#   candidate_name / 候选人 / 姓名
+#   position / 职位
+#   consultant / 顾问 / 负责顾问
+#   deal_date / 成单日期 / 日期
+#   annual_salary / 年薪
+#   fee_rate / 费率
+#   fee_amount / 佣金
+#   payment_status / 回款状态
+#   actual_payment / 实际回款 / 回款
+#   payment_date / 回款日期
+#   prior_year_collection / 上年遗留回款 / 遗留回款
+# 
+# - annual_salary（年薪）和 fee_rate（费率）为可选字段，可为空
+# - payment_date（回款日期）未回款时可为空
+# - prior_year_collection（上年遗留回款）：去年offer/开票但今年回款的金额，算入本年收入
+# - 日期格式：YYYY-MM-DD
+#
+# 示例数据：
+D0001,阿里巴巴,张三,Java开发,顾问A,2024-01-15,500000,20,100000,已回款,100000,2024-02-15,0
+D0002,腾讯,李四,产品经理,顾问B,2024-02-20,,,120000,部分回款,60000,2024-03-15,0
+D0003,字节跳动,王五,算法工程师,顾问A,2024-03-10,800000,,176000,未回款,0,,50000

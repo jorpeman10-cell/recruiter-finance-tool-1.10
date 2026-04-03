@@ -1,0 +1,4 @@
+name,base_salary,join_date,team,is_active,monthly_kpi
+顾问A,10000,2023-01-15,互联网,True,60000
+顾问B,12000,2023-03-01,互联网,True,80000
+顾问C,15000,2022-08-20,金融,True,100000

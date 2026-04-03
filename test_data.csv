@@ -1,0 +1,9 @@
+deal_id,client_name,candidate_name,position,consultant,deal_date,fee_amount,actual_payment,prior_year_collection,payment_status
+# 测试数据说明：
+# actual_payment = 总回款（本年回款 + 上年遗留）
+# prior_year_collection = 上年遗留部分（仅用于明细展示）
+# 本年回款 = actual_payment - prior_year_collection
+D001,测试客户1,候选人1,职位1,顾问A,2026-01-15,500000,1106000,1000000,已回款
+# D001：总回款110.6万 = 本年10.6万 + 上年遗留100万
+D002,测试客户2,候选人2,职位2,顾问B,2026-02-20,500000,0,0,未回款
+D003,测试客户3,候选人3,职位3,顾问C,2026-03-10,500000,0,0,未回款
