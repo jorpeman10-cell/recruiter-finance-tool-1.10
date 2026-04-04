@@ -64,24 +64,60 @@ def _to_float(val, default: float = 0.0) -> float:
 # 1. DataFrame 加载函数
 # ============================================================
 
+# 费用类型自动分类关键词
+SALARY_TYPE_KEYWORDS = {'工资', '社保', '公积金', '奖金', '提成', '补贴', '津贴', '薪酬', 'salary', 'social', 'housing', 'bonus'}
+REIMBURSE_TYPE_KEYWORDS = {'差旅', '招待', '餐饮', '交通', '滴滴', '打车', '加油', '停车', '过路费', '渠道', '广告', '推广', 'reimburse', 'travel', 'entertainment', 'transport'}
+FIXED_TYPE_KEYWORDS = {'租金', '物业', '房租', '行政', '办公', '软件', '系统', '订阅', '认证', '财务费', '年会', '体检', '招聘', '通讯', '电脑', '网络', 'fixed', 'rent', 'admin', 'software'}
+
+
+def _classify_expense_type(type_str: str) -> str:
+    """根据费用类型字符串自动分类为 salary / reimburse / fixed"""
+    if not type_str:
+        return 'unknown'
+    ts = type_str.lower()
+    for kw in SALARY_TYPE_KEYWORDS:
+        if kw in ts:
+            return 'salary'
+    for kw in REIMBURSE_TYPE_KEYWORDS:
+        if kw in ts:
+            return 'reimburse'
+    for kw in FIXED_TYPE_KEYWORDS:
+        if kw in ts:
+            return 'fixed'
+    return 'unknown'
+
+
+def _extract_expense_type(row: pd.Series) -> str:
+    """从行中提取费用类型"""
+    for col in ['费用类型', 'category', '类型', '费用类别', 'type', '类别', '项目']:
+        if col in row and pd.notna(row[col]):
+            return str(row[col]).strip()
+    return ""
+
+
 def load_real_salary_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
     """
     从工资表 DataFrame 加载真实成本记录
     支持的列名（中文/英文混排）:
       - 日期/年月/date/month/月份
-      - 顾问姓名/姓名/顾问/name/consultant/用户
+      - 顾问姓名/姓名/顾问/name/consultant/用户/部门
       - 基本工资/底薪/base_salary/基本工资
       - 社保/社保公司部分/social_insurance
       - 公积金/公积金公司部分/housing_fund
       - 奖金/提成/bonus
       - 其他补贴/津贴/allowance
       - 合计/总额/total/amount/实发/成本
+      
+    如果表格中包含"费用类型"列，系统会根据费用类型自动分类（工资类→salary，
+    差旅招待类→reimburse，房租行政类→fixed），避免混合表格重复计算。
     """
     records = []
+    has_type_col = any(c in df.columns for c in ['费用类型', 'category', '类型', '费用类别', 'type', '类别', '项目'])
+    
     for idx, row in df.iterrows():
         # 日期
         date_val = None
-        for col in ['date', '日期', '年月', '月份', 'month']:
+        for col in ['date', '日期', '年月', '月份', 'month', '时间']:
             if col in row and pd.notna(row[col]):
                 date_val = _parse_date_val(row[col])
                 if date_val:
@@ -89,21 +125,24 @@ def load_real_salary_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
         if not date_val:
             date_val = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        # 顾问姓名
+        # 顾问/部门/姓名
         consultant = None
-        for col in ['consultant', '顾问', '顾问姓名', '姓名', 'name', '用户', '员工']:
+        for col in ['consultant', '顾问', '顾问姓名', '姓名', 'name', '用户', '员工', '部门']:
             if col in row and pd.notna(row[col]):
                 consultant = str(row[col]).strip()
                 break
         
-        # 尝试读取总额列
+        # 费用类型（如果有的话）
+        expense_type = _extract_expense_type(row)
+        
+        # 尝试读取金额列
         total_amount = 0.0
-        for col in ['amount', '合计', '总额', 'total', '实发', '成本', '总金额']:
+        for col in ['amount', '合计', '总额', 'total', '实发', '成本', '总金额', '金额']:
             if col in row and pd.notna(row[col]):
                 total_amount = _to_float(row[col])
                 break
         
-        # 如果没有总额列，累加明细
+        # 如果没有直接金额列，累加明细
         if total_amount == 0.0:
             components = [
                 ('base_salary', '基本工资', '底薪'),
@@ -119,15 +158,33 @@ def load_real_salary_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
                         total_amount += _to_float(row[col])
                         break
         
-        if total_amount > 0 or consultant:
-            records.append(RealCostRecord(
-                record_id=f"SAL-{uuid.uuid4().hex[:8]}",
-                date=date_val,
-                category='salary',
-                amount=total_amount,
-                consultant=consultant,
-                description='真实工资成本'
-            ))
+        # 跳过汇总行（空费用类型且没有顾问/部门的金额大数）
+        if not expense_type and not consultant and total_amount > 100000:
+            continue
+        if total_amount <= 0:
+            continue
+        
+        # 自动分类
+        if has_type_col and expense_type:
+            classified = _classify_expense_type(expense_type)
+            if classified == 'unknown':
+                # 无法识别的类型，保守归入 fixed（避免误增工资）
+                classified = 'fixed'
+            category = classified
+            description = expense_type
+        else:
+            category = 'salary'
+            description = '真实工资成本'
+        
+        prefix = {'salary': 'SAL', 'reimburse': 'RMB', 'fixed': 'FXD'}.get(category, 'RCT')
+        records.append(RealCostRecord(
+            record_id=f"{prefix}-{uuid.uuid4().hex[:8]}",
+            date=date_val,
+            category=category,
+            amount=total_amount,
+            consultant=consultant,
+            description=description
+        ))
     return records
 
 
@@ -136,13 +193,18 @@ def load_real_reimburse_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]
     从报销/费用表 DataFrame 加载真实成本记录
     支持的列名:
       - 日期/date/时间
-      - 顾问/姓名/name/consultant/用户/员工
+      - 顾问/姓名/name/consultant/用户/员工/部门
       - 费用类型/类型/category/type/费用类别
       - 金额/amount/费用/总价
       - 关联职位/职位/position/项目/project/客户/client
       - 说明/备注/description/note
+      
+    如果表格中包含"费用类型"列，会自动筛选出报销/差旅/招待相关记录，
+    工资类记录会被忽略（避免与工资表重复）。
     """
     records = []
+    has_type_col = any(c in df.columns for c in ['费用类型', 'category', '类型', '费用类别', 'type', '类别', '项目'])
+    
     for idx, row in df.iterrows():
         date_val = None
         for col in ['date', '日期', '时间']:
@@ -154,22 +216,30 @@ def load_real_reimburse_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]
             date_val = datetime.now()
         
         consultant = None
-        for col in ['consultant', '顾问', '姓名', 'name', '用户', '员工']:
+        for col in ['consultant', '顾问', '姓名', 'name', '用户', '员工', '部门']:
             if col in row and pd.notna(row[col]):
                 consultant = str(row[col]).strip()
                 break
         
-        sub_category = None
-        for col in ['category', '费用类型', '类型', '费用类别', 'type']:
-            if col in row and pd.notna(row[col]):
-                sub_category = str(row[col]).strip()
-                break
+        sub_category = _extract_expense_type(row)
+        
+        # 如果有费用类型列，但类型是工资/社保/房租/固定类，则跳过（避免重复）
+        if has_type_col and sub_category:
+            classified = _classify_expense_type(sub_category)
+            if classified in ('salary', 'fixed'):
+                continue
         
         amount = 0.0
         for col in ['amount', '金额', '费用', '总价', 'total']:
             if col in row and pd.notna(row[col]):
                 amount = _to_float(row[col])
                 break
+        
+        # 跳过无明确类型的汇总行
+        if not sub_category and not consultant and amount > 100000:
+            continue
+        if amount <= 0:
+            continue
         
         position_id = None
         for col in ['position_id', '关联职位', '职位', 'position', '项目']:
@@ -189,18 +259,17 @@ def load_real_reimburse_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]
                 description = str(row[col]).strip()
                 break
         
-        if amount > 0:
-            records.append(RealCostRecord(
-                record_id=f"RMB-{uuid.uuid4().hex[:8]}",
-                date=date_val,
-                category='reimburse',
-                amount=amount,
-                consultant=consultant,
-                description=description,
-                position_id=position_id,
-                client_name=client_name,
-                sub_category=sub_category
-            ))
+        records.append(RealCostRecord(
+            record_id=f"RMB-{uuid.uuid4().hex[:8]}",
+            date=date_val,
+            category='reimburse',
+            amount=amount,
+            consultant=consultant,
+            description=description or sub_category,
+            position_id=position_id,
+            client_name=client_name,
+            sub_category=sub_category
+        ))
     return records
 
 
@@ -212,8 +281,13 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
       - 费用类型/类型/category/type/费用类别
       - 金额/amount/费用/总价
       - 说明/备注/description/note
+      
+    如果表格中包含"费用类型"列，会自动筛选出固定支出相关记录，
+    工资/差旅类记录会被忽略（避免与其他表格重复）。
     """
     records = []
+    has_type_col = any(c in df.columns for c in ['费用类型', 'category', '类型', '费用类别', 'type', '类别', '项目'])
+    
     for idx, row in df.iterrows():
         date_val = None
         for col in ['date', '日期', '年月', '月份', 'month']:
@@ -224,11 +298,13 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
         if not date_val:
             date_val = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
-        sub_category = None
-        for col in ['category', '费用类型', '类型', '费用类别', 'type']:
-            if col in row and pd.notna(row[col]):
-                sub_category = str(row[col]).strip()
-                break
+        sub_category = _extract_expense_type(row)
+        
+        # 如果有费用类型列，跳过工资/差旅/招待类
+        if has_type_col and sub_category:
+            classified = _classify_expense_type(sub_category)
+            if classified in ('salary', 'reimburse'):
+                continue
         
         amount = 0.0
         for col in ['amount', '金额', '费用', '总价', 'total']:
@@ -236,22 +312,27 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
                 amount = _to_float(row[col])
                 break
         
+        # 跳过汇总行
+        if not sub_category and amount > 100000:
+            continue
+        if amount <= 0:
+            continue
+        
         description = ""
         for col in ['description', '说明', '备注', 'note', '摘要']:
             if col in row and pd.notna(row[col]):
                 description = str(row[col]).strip()
                 break
         
-        if amount > 0:
-            records.append(RealCostRecord(
-                record_id=f"FXD-{uuid.uuid4().hex[:8]}",
-                date=date_val,
-                category='fixed',
-                amount=amount,
-                consultant=None,
-                description=description,
-                sub_category=sub_category
-            ))
+        records.append(RealCostRecord(
+            record_id=f"FXD-{uuid.uuid4().hex[:8]}",
+            date=date_val,
+            category='fixed',
+            amount=amount,
+            consultant=None,
+            description=description or sub_category,
+            sub_category=sub_category
+        ))
     return records
 
 

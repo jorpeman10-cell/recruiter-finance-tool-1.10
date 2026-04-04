@@ -45,3 +45,6 @@ Thumbs.db
 
 # Data files (keep sample data, ignore large files)
 # Note: We're keeping data_templates/ for deployment
+watched/
+import_log.json
+auth_config.json
