@@ -13,6 +13,7 @@ from real_finance import (
     load_real_reimburse_from_dataframe,
     load_real_fixed_from_dataframe,
 )
+from auth_guard import require_real_finance_auth, logout_real_finance, is_real_finance_protected
 
 
 def format_currency(value):
@@ -24,8 +25,22 @@ def format_currency(value):
 
 
 def render_real_finance_page(analyzer):
-    st.markdown('<div class="main-header">📒 真实财务核算</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">基于真实工资、报销和固定支出的盈利能力分析</div>', unsafe_allow_html=True)
+    # 访问控制：检查是否已通过密码验证
+    if not require_real_finance_auth():
+        return
+    
+    col_title, col_logout = st.columns([6, 1])
+    with col_title:
+        st.markdown('<div class="main-header">📒 真实财务核算</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sub-header">基于真实工资、报销和固定支出的盈利能力分析</div>', unsafe_allow_html=True)
+    with col_logout:
+        if is_real_finance_protected():
+            st.write("")
+            st.write("")
+            if st.button("🔓 退出登录", type="secondary", use_container_width=True, key="real_finance_logout_btn"):
+                logout_real_finance()
+                st.success("已退出")
+                st.rerun()
     
     # ========== 数据上传区 ==========
     st.markdown("### 📁 上传真实财务数据")

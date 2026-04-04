@@ -19,6 +19,7 @@ from models import AdvancedRecruitmentAnalyzer, PositionLifecycle, CashFlowEvent
 from alert_page import render_alert_system
 from pages.real_finance_page import render_real_finance_page
 import auto_import
+import auth_guard
 
 st.set_page_config(
     page_title="猎头财务分析工具",
@@ -283,6 +284,35 @@ def render_sidebar():
             st.sidebar.write(f"- 真实财务: {real_summary['record_count']}条")
     else:
         st.sidebar.info("👆 请先上传数据文件")
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🔐 访问控制")
+    with st.sidebar.expander("真实财务密码", expanded=False):
+        current_pwd_set = auth_guard.is_real_finance_protected()
+        if current_pwd_set:
+            st.caption("当前已设置访问密码")
+        else:
+            st.caption("当前未设置访问密码（任何人可查看）")
+        
+        new_pwd = st.text_input("新密码", type="password", key="set_real_pwd")
+        confirm_pwd = st.text_input("确认密码", type="password", key="confirm_real_pwd")
+        
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if st.button("保存", use_container_width=True, key="save_real_pwd_btn"):
+                if new_pwd != confirm_pwd:
+                    st.error("两次输入不一致")
+                else:
+                    auth_guard.set_real_finance_password(new_pwd)
+                    if new_pwd:
+                        st.success("密码已设置")
+                    else:
+                        st.success("密码已清除")
+        with col_b:
+            if st.button("清除密码", type="secondary", use_container_width=True, key="clear_real_pwd_btn"):
+                auth_guard.set_real_finance_password("")
+                auth_guard.logout_real_finance()
+                st.success("密码已清除")
 
 
 def render_dashboard():
