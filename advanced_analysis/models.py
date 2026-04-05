@@ -389,7 +389,7 @@ class AdvancedRecruitmentAnalyzer:
         self.forecast_positions: List[ForecastPosition] = []  # 预测职位（在途单）
         self.cashflow_events: List[CashFlowEvent] = []
         self.consultant_configs: Dict[str, dict] = {}  # 顾问配置
-        self.real_cost_records: List[RealCostRecord] = []  # 真实财务成本记录
+        self.real_cost_records: List[RealCostRecord] = []  # 财务状况成本记录
         
         # 配置参数
         self.config = {
@@ -413,8 +413,8 @@ class AdvancedRecruitmentAnalyzer:
             'cash_warning_months': 5,  # 现金流预警月数（红线 = 5个月储备金）
             'mc_warning_threshold': 0,  # 边际贡献预警阈值
             
-            # 真实财务模式开关
-            'use_real_costs': False,  # False=假设模式(3倍工资), True=真实财务模式
+            # 财务状况分析模式开关
+            'use_real_costs': False,  # False=假设模式(3倍工资), True=财务状况分析模式
         }
     
     def add_position(self, position: PositionLifecycle):
@@ -691,8 +691,8 @@ class AdvancedRecruitmentAnalyzer:
         return self.get_historical_payment_cycle()
     
     def estimate_monthly_cost(self) -> float:
-        """估算公司月度总成本（基于顾问3倍工资法 或 真实财务数据）- 只计算在职顾问"""
-        # 如果启用了真实财务模式且有真实成本记录，使用真实数据估算月均成本
+        """估算公司月度总成本（基于顾问3倍工资法 或 财务数据）- 只计算在职顾问"""
+        # 如果启用了财务状况分析模式且有成本记录，使用真实数据估算月均成本
         if self.config.get('use_real_costs', False) and self.real_cost_records:
             today = datetime.now()
             # 取最近3个月的真实成本平均值作为月度估算
@@ -734,6 +734,143 @@ class AdvancedRecruitmentAnalyzer:
         monthly_salary = self.config.get('consultant_monthly_salary', 15000)
         multiplier = self.config.get('salary_multiplier', 3.0)
         return consultant_count * monthly_salary * multiplier
+    
+    @staticmethod
+    def _calc_consultant_active_months(join_date: Optional[datetime], leave_date: Optional[datetime],
+                                       period_start: datetime, period_end: datetime) -> float:
+        """
+        计算顾问在指定周期内的在岗月数
+        规则：每个自然月内，实际在岗天数 >15 天按1个月，<=15 天按0.5个月
+        """
+        if not join_date:
+            join_date = period_start
+        if not leave_date:
+            leave_date = period_end
+        
+        actual_start = max(join_date, period_start)
+        actual_end = min(leave_date, period_end)
+        if actual_start > actual_end:
+            return 0.0
+        
+        months = 0.0
+        current = datetime(actual_start.year, actual_start.month, 1)
+        end = datetime(actual_end.year, actual_end.month, 1)
+        
+        while current <= end:
+            year, month = current.year, current.month
+            month_start = datetime(year, month, 1)
+            if month == 12:
+                month_end = datetime(year + 1, 1, 1) - timedelta(days=1)
+            else:
+                month_end = datetime(year, month + 1, 1) - timedelta(days=1)
+            
+            overlap_start = max(actual_start, month_start)
+            overlap_end = min(actual_end, month_end)
+            days = (overlap_end - overlap_start).days + 1
+            
+            if days > 15:
+                months += 1.0
+            else:
+                months += 0.5
+            
+            if month == 12:
+                current = datetime(year + 1, 1, 1)
+            else:
+                current = datetime(year, month + 1, 1)
+        
+        return months
+    
+    def _build_consultant_name_map(self) -> Dict[str, str]:
+        """从 positions 的 consultant 字段提取英文名<->中文名映射"""
+        name_map = {}
+        for p in self.positions:
+            if not p.consultant:
+                continue
+            parts = p.consultant.split()
+            if len(parts) >= 3:
+                english_name = parts[0] + ' ' + parts[1]
+                chinese_name = ' '.join(parts[2:])
+                name_map[english_name] = chinese_name
+                name_map[chinese_name] = english_name
+        return name_map
+    
+    def get_period_assumed_cost(self, period_start: datetime, period_end: datetime) -> Dict:
+        """
+        计算指定周期内的假设人力成本（基于顾问3倍工资法）
+        根据 join_date / leave_date 精确计算在岗月数：
+          - 超过15天按1个月
+          - 15天及以下按0.5个月
+        对于缺少精确日期的顾问，优先用真实工资记录反推在岗月份（有工资记录的月份视为在岗1个月）。
+        """
+        total = 0.0
+        details = []
+        name_map = self._build_consultant_name_map()
+        
+        # 用于去重：只处理原始英文名 key（避免中文别名重复计算）
+        processed_names = set()
+        
+        for name, config in list(self.consultant_configs.items()):
+            # 跳过中文别名 key（通过映射找到原始英文名）
+            if name in processed_names:
+                continue
+            original_name = name_map.get(name, name)
+            if original_name in processed_names:
+                continue
+            processed_names.add(original_name)
+            
+            # 获取原始配置
+            cfg = self.consultant_configs.get(original_name, config)
+            join_date = cfg.get('join_date')
+            leave_date = cfg.get('leave_date')
+            
+            # 查找该顾问在周期内的真实工资记录（匹配英文名或中文名）
+            chinese_name = name_map.get(original_name)
+            salary_records = [
+                r for r in self.real_cost_records
+                if r.category == 'salary' and r.consultant
+                and (r.consultant == original_name or r.consultant == chinese_name)
+                and period_start <= r.date <= period_end
+            ]
+            
+            months = 0.0
+            if join_date or leave_date:
+                # 有精确日期，按日期规则计算
+                months = self._calc_consultant_active_months(join_date, leave_date, period_start, period_end)
+            elif salary_records:
+                # 没有日期，但有工资记录：按有工资的月份数估算
+                months_set = set((r.date.year, r.date.month) for r in salary_records)
+                months = float(len(months_set))
+            else:
+                # 既无日期也无工资记录：按 is_active 判断
+                if cfg.get('is_active', True):
+                    months = self._calc_consultant_active_months(None, None, period_start, period_end)
+            
+            # 如果没有 leave_date，优先用 salary 记录修正（防止离职但无日期时高估）
+            if not leave_date:
+                if salary_records:
+                    months_from_salary = float(len(set((r.date.year, r.date.month) for r in salary_records)))
+                    months = min(months, months_from_salary)
+                elif not cfg.get('is_active', True):
+                    # inactive 且既无 leave_date 也无 salary 记录 = 视为已不在岗
+                    months = 0.0
+            
+            if months > 0:
+                monthly_salary = cfg.get('monthly_salary', 15000)
+                multiplier = cfg.get('salary_multiplier', 3.0)
+                cost = monthly_salary * multiplier * months
+                total += cost
+                details.append({
+                    '顾问': original_name,
+                    '月薪': monthly_salary,
+                    '倍数': multiplier,
+                    '在岗月数': months,
+                    '假设成本': cost,
+                })
+        
+        return {
+            'total': total,
+            'details': details,
+        }
     
     def get_cash_safety_analysis(self, current_balance: float = 0) -> Dict:
         """
@@ -1250,17 +1387,27 @@ class AdvancedRecruitmentAnalyzer:
         
         return pd.DataFrame(result).sort_values('边际贡献', ascending=False)
     
+    def _get_consultant_period_cost(self, consultant_name: str, period_start: datetime, period_end: datetime) -> float:
+        """从 get_period_assumed_cost 结果中匹配单个顾问的周期成本"""
+        result = self.get_period_assumed_cost(period_start, period_end)
+        for d in result['details']:
+            stored = d['顾问']
+            if stored == consultant_name or consultant_name in stored or stored in consultant_name:
+                return d['假设成本']
+        return 0.0
+    
     def get_consultant_profit_forecast(self, forecast_days: int = 90) -> pd.DataFrame:
         """
-        顾问盈亏预测（90天滚动预测）- 用于管理决策（优化/PIP）
+        顾问盈亏分析（2026年Q1）- 用于管理决策（优化/PIP）
         
         计算逻辑（拆分实际贡献和预期贡献）：
         - 实际已回款：已填写payment_date且到账的回款（累计贡献）
         - Offer未回款：已成单（有offer_date）但尚未回款的（预期贡献）
         - Forecast预期：在途单的加权预期（纯预期）
-        - 90天成本：月工资 × 3倍 × 3个月
+        - 成本基数：2026年1-3月实际在岗月数 × 月薪 × 3倍
         
-        注：只计算在职顾问（consultant_configs中is_active=True）
+        注：主要计算在职顾问（consultant_configs中is_active=True），
+            但1-3月有工资记录或回款记录的离职顾问也会被纳入。
         """
         if not self.positions and not self.forecast_positions:
             return pd.DataFrame()
@@ -1349,64 +1496,68 @@ class AdvancedRecruitmentAnalyzer:
                         forecast_90d += f.weighted_revenue
             
             # ========== 4. 成本计算 ==========
+            # 统一使用 2026年1-3月实际在岗成本作为基数
+            period_start = datetime(2026, 1, 1)
+            period_end = datetime(2026, 3, 31)
+            period_cost = self._get_consultant_period_cost(consultant, period_start, period_end)
+            
             if consultant in self.consultant_configs:
                 monthly_salary = self.consultant_configs[consultant].get('monthly_salary', 15000)
             else:
                 monthly_salary = self.config.get('consultant_monthly_salary', 15000)
             
             multiplier = self.config.get('salary_multiplier', 3.0)
-            cost_90d = monthly_salary * multiplier * 3  # 3个月成本
+            # fallback：如果 period_cost 为 0（无工资记录且无日期），用默认3个月成本
+            cost = period_cost if period_cost > 0 else monthly_salary * multiplier * 3
             
-            # ========== 5. 拆分计算利润和利润率 ==========
-            # 累计贡献（实际已回款）
-            actual_profit = actual_collected_90d - cost_90d
-            actual_margin_str = self._calc_margin_str(actual_collected_90d, cost_90d)
+            # ========== 5. 计算核心指标 ==========
+            # 利润只基于已回款
+            actual_profit = actual_collected_90d - cost
+            actual_margin_str = self._calc_margin_str(actual_collected_90d, cost)
             
-            # 预期贡献（Offer未回款）
-            offer_revenue_total = actual_collected_90d + offer_pending_90d
-            offer_profit = offer_revenue_total - cost_90d
-            offer_margin_str = self._calc_margin_str(offer_revenue_total, cost_90d)
+            # Offer业绩余粮（月数）= Offer金额 / 月成本
+            monthly_cost = monthly_salary * multiplier
+            offer_reserve_months = offer_pending_90d / monthly_cost if monthly_cost > 0 else 0
             
-            # 总预测（含Forecast）
-            total_revenue = offer_revenue_total + forecast_90d
-            total_profit = total_revenue - cost_90d
-            total_margin_str = self._calc_margin_str(total_revenue, cost_90d)
+            # Forecast 对未来6个月成本的覆盖
+            future_6m_cost = monthly_cost * 6
+            forecast_coverage = (forecast_90d / future_6m_cost) if future_6m_cost > 0 else 0
             
-            # ========== 6. 风险评级（基于总预测） ==========
-            if total_profit < 0:
-                risk_level = '🔴 亏损风险'
-            elif total_revenue > 0 and (total_profit / total_revenue * 100) < 20:
-                risk_level = '🟡 低利润'
+            # ========== 6. 风险评级 ==========
+            if actual_profit < 0 and offer_reserve_months < 3:
+                risk_level = '🔴 亏损且余粮不足'
+            elif actual_profit < 0:
+                risk_level = '🟡 当前亏损但有余粮'
+            elif forecast_coverage < 0.5:
+                risk_level = '🟡 当前盈利但Pipeline不足'
             else:
                 risk_level = '🟢 健康'
             
             result.append({
                 '顾问': consultant,
-                # 累计贡献（实际已回款）
+                # 实际回款（利润口径）
                 '已回款': actual_collected_90d,
                 '累计实际回款': actual_collected_total,
-                '实际回款利润': actual_profit,
-                '实际回款利润率': actual_margin_str,
-                # 预期贡献（Offer未回款）
+                'Q1成本': cost,
+                '月成本': monthly_cost,
+                '回款利润': actual_profit,
+                '回款利润率': actual_margin_str,
+                # Offer业绩余粮
                 '90天Offer待回': offer_pending_90d,
                 '累计Offer待回': offer_pending_total,
-                '含Offer收入': offer_revenue_total,
-                '含Offer利润': offer_profit,
-                '含Offer利润率': offer_margin_str,
-                # Forecast预期
+                'Offer余粮(月)': round(offer_reserve_months, 1),
+                # Forecast Pipeline覆盖
                 '90天Forecast': forecast_90d,
                 '累计Forecast': forecast_total,
-                # 总计
-                '预测总收入': total_revenue,
-                '90天成本': cost_90d,
-                '预测净利润': total_profit,
-                '预测利润率': total_margin_str,
+                '未来6个月成本': future_6m_cost,
+                'Forecast覆盖率': f"{forecast_coverage*100:.0f}%",
+                'Forecast覆盖数值': forecast_coverage,
                 # 其他
                 '风险评级': risk_level,
                 '月薪': monthly_salary,
             })
         
-        return pd.DataFrame(result).sort_values('预测净利润', ascending=False)
+        return pd.DataFrame(result).sort_values('回款利润', ascending=False)
     
     def _calc_margin_str(self, revenue: float, cost: float) -> str:
         """计算利润率字符串，亏损时显示'-'"""
@@ -2302,14 +2453,14 @@ class AdvancedRecruitmentAnalyzer:
         
         if not forecast_df.empty:
             # 亏损顾问预警
-            loss_consultants = forecast_df[forecast_df['预测净利润'] < -50000]  # 亏损超5万
+            loss_consultants = forecast_df[forecast_df['回款利润'] < -50000]  # 亏损超5万
             for _, row in loss_consultants.iterrows():
                 alerts.append({
                     'level': 'warning',
                     'level_text': '🟡 警告',
                     'category': '顾问绩效',
-                    'title': f"顾问 {row['顾问']} 90天预测严重亏损",
-                    'message': f"预测净利润 {row['预测净利润']:,.0f} 元，成本 {row['90天成本']:,.0f} 元",
+                    'title': f"顾问 {row['顾问']} Q1实际回款亏损",
+                    'message': f"回款利润 {row['回款利润']:,.0f} 元，成本 {row['Q1成本']:,.0f} 元",
                     'action': '评估是否需要PIP或优化',
                     'responsible': '团队负责人',
                     'due_date': (today + timedelta(days=30)).strftime('%Y-%m-%d'),
@@ -2474,7 +2625,11 @@ class AdvancedRecruitmentAnalyzer:
                     'stage': f.stage
                 })
         
-        # 3. 成本计算
+        # 3. 成本计算（统一使用2026年1-3月实际在岗成本）
+        period_start = datetime(2026, 1, 1)
+        period_end = datetime(2026, 3, 31)
+        period_cost = self._get_consultant_period_cost(consultant_name, period_start, period_end)
+        
         if consultant_name in self.consultant_configs:
             monthly_salary = self.consultant_configs[consultant_name].get('monthly_salary', 15000)
         else:
@@ -2482,7 +2637,7 @@ class AdvancedRecruitmentAnalyzer:
         
         multiplier = self.config.get('salary_multiplier', 3.0)
         monthly_cost = monthly_salary * multiplier
-        cost_90d = monthly_cost * 3  # 3个月
+        cost = period_cost if period_cost > 0 else monthly_cost * 3  # fallback 3个月
         
         # 4. 汇总计算（拆分：实际回款 vs Offer待回 vs Forecast）
         actual_collection = sum(d['expected_amount'] for d in actual_collection_details)
@@ -2493,17 +2648,19 @@ class AdvancedRecruitmentAnalyzer:
         
         # 计算不同场景下的利润
         # 场景1：仅实际回款
-        actual_profit = actual_collection - cost_90d
-        actual_margin_str = self._calc_margin_str(actual_collection, cost_90d)
+        actual_profit = actual_collection - cost
+        actual_margin_str = self._calc_margin_str(actual_collection, cost)
         
         # 场景2：含Offer待回
         offer_revenue = actual_collection + offer_pending
-        offer_profit = offer_revenue - cost_90d
-        offer_margin_str = self._calc_margin_str(offer_revenue, cost_90d)
+        offer_profit = offer_revenue - cost
+        offer_margin_str = self._calc_margin_str(offer_revenue, cost)
         
         # 场景3：含Forecast（总预测）
-        net_profit = total_revenue - cost_90d
-        profit_margin_str = self._calc_margin_str(total_revenue, cost_90d)
+        # 新指标：Offer余粮、Forecast覆盖
+        offer_reserve_months = offer_pending / monthly_cost if monthly_cost > 0 else 0
+        future_6m_cost = monthly_cost * 6
+        forecast_coverage = (total_forecast / future_6m_cost) if future_6m_cost > 0 else 0
         
         return {
             'consultant_name': consultant_name,
@@ -2515,8 +2672,8 @@ class AdvancedRecruitmentAnalyzer:
                 'monthly_salary': monthly_salary,
                 'salary_multiplier': multiplier,
                 'monthly_cost': monthly_cost,
-                'cost_90d': cost_90d,
-                'calculation': f"月薪 {monthly_salary:,.0f} × {multiplier} × 3个月 = {cost_90d:,.0f}"
+                'period_cost': cost,
+                'calculation': f"2026年1-3月实际在岗成本 = {cost:,.0f}元 (月薪 {monthly_salary:,.0f} × {multiplier})"
             },
             
             # 回款明细（拆分）
@@ -2537,46 +2694,45 @@ class AdvancedRecruitmentAnalyzer:
             'forecast_count': len(forecast_details),
             'total_forecast': total_forecast,
             
-            # 汇总（拆分场景）
+            # 汇总（新口径）
             'actual_collection': actual_collection,
             'actual_profit': actual_profit,
             'actual_margin': actual_margin_str,
             
             'offer_pending': offer_pending,
-            'offer_revenue': offer_revenue,
-            'offer_profit': offer_profit,
-            'offer_margin': offer_margin_str,
+            'offer_reserve_months': offer_reserve_months,
             
-            'total_revenue': total_revenue,
-            'cost_90d': cost_90d,
-            'net_profit': net_profit,
-            'profit_margin': profit_margin_str,
+            'total_forecast': total_forecast,
+            'future_6m_cost': future_6m_cost,
+            'forecast_coverage': forecast_coverage,
+            
+            'period_cost': cost,
             
             # 计算过程
             'calculation_process': [
-                f"【场景1：仅实际回款】",
+                f"【利润核算（仅实际回款）】",
                 f"  实际回款: {len(actual_collection_details)}笔，合计 {actual_collection:,.0f}元",
-                f"  利润: {actual_collection:,.0f} - {cost_90d:,.0f} = {actual_profit:,.0f}元",
+                f"  Q1成本: {cost:,.0f}元",
+                f"  利润: {actual_collection:,.0f} - {cost:,.0f} = {actual_profit:,.0f}元",
                 f"  利润率: {actual_margin_str}",
                 f"",
-                f"【场景2：含Offer待回】",
-                f"  实际回款: {actual_collection:,.0f}元",
-                f"  Offer待回: {len(offer_pending_details)}笔，合计 {offer_pending:,.0f}元",
-                f"  合计收入: {offer_revenue:,.0f}元",
-                f"  利润: {offer_profit:,.0f}元，利润率: {offer_margin_str}",
+                f"【Offer业绩余粮】",
+                f"  90天Offer待回: {len(offer_pending_details)}笔，合计 {offer_pending:,.0f}元",
+                f"  月成本: {monthly_cost:,.0f}元",
+                f"  余粮: {offer_pending:,.0f} / {monthly_cost:,.0f} = {offer_reserve_months:.1f}个月",
                 f"",
-                f"【场景3：含Forecast（总预测）】",
+                f"【Forecast Pipeline预警（未来6个月）】",
                 f"  90天Forecast: {len(forecast_details)}笔，合计 {total_forecast:,.0f}元",
-                f"  预测总收入: {total_revenue:,.0f}元",
-                f"  利润: {net_profit:,.0f}元，利润率: {profit_margin_str}"
+                f"  未来6个月成本: {future_6m_cost:,.0f}元",
+                f"  覆盖率: {forecast_coverage*100:.0f}%"
             ]
         }
 
 
-    # ============ 真实财务分析模块 ============
+    # ============ 财务状况分析模块 ============
     
     def get_position_real_mc_analysis(self) -> pd.DataFrame:
-        """单职位真实边际贡献分析（使用真实财务数据）"""
+        """单职位真实边际贡献分析（使用财务数据）"""
         if not self.positions or not self.real_cost_records:
             return pd.DataFrame(columns=[
                 '职位ID', '客户', '职位', '顾问', '回款', '真实工资', '真实报销',
@@ -2621,7 +2777,7 @@ class AdvancedRecruitmentAnalyzer:
         return pd.DataFrame(data)
     
     def get_consultant_real_profit_analysis(self) -> pd.DataFrame:
-        """顾问真实盈亏分析（使用真实财务数据）"""
+        """顾问真实盈亏分析（使用财务数据）"""
         if not self.positions:
             return pd.DataFrame()
         
@@ -2661,7 +2817,7 @@ class AdvancedRecruitmentAnalyzer:
         return pd.DataFrame(result).sort_values('真实利润', ascending=False)
     
     def get_monthly_real_summary_df(self) -> pd.DataFrame:
-        """月度真实财务汇总表"""
+        """月度财务状况汇总表"""
         if not self.positions:
             return pd.DataFrame()
         
@@ -2685,20 +2841,24 @@ class AdvancedRecruitmentAnalyzer:
         data = []
         for ym in sorted(months):
             summary = calculate_monthly_real_summary(ym, self.real_cost_records)
+            operating_cost = summary['salary'] + summary['reimburse'] + summary['fixed']
             data.append({
                 '年月': f"{ym[0]}-{ym[1]:02d}",
                 '回款': monthly_revenue.get(ym, 0),
                 '真实工资': summary['salary'],
                 '真实报销': summary['reimburse'],
                 '真实固定': summary['fixed'],
+                '年度奖金': summary['annual_bonus_2025'],
                 '真实总成本': summary['total'],
+                '经营总成本(不含奖金)': operating_cost,
                 '真实利润': monthly_revenue.get(ym, 0) - summary['total'],
+                '经营利润(不含奖金)': monthly_revenue.get(ym, 0) - operating_cost,
             })
         
         return pd.DataFrame(data)
     
     def get_real_cost_summary(self) -> Dict:
-        """真实财务数据汇总"""
+        """财务状况数据汇总"""
         if not self.real_cost_records:
             return {
                 'has_data': False,
@@ -2710,13 +2870,17 @@ class AdvancedRecruitmentAnalyzer:
         
         salary = sum(r.amount for r in self.real_cost_records if r.category == 'salary')
         reimburse = sum(r.amount for r in self.real_cost_records if r.category == 'reimburse')
-        fixed = sum(r.amount for r in self.real_cost_records if r.category == 'fixed')
+        fixed = sum(r.amount for r in self.real_cost_records if r.category == 'fixed' and r.sub_category != 'annual_bonus_2025')
+        annual_bonus_2025 = sum(r.amount for r in self.real_cost_records if r.sub_category == 'annual_bonus_2025')
+        operating_total = salary + reimburse + fixed
         
         return {
             'has_data': True,
             'salary': salary,
             'reimburse': reimburse,
             'fixed': fixed,
-            'total': salary + reimburse + fixed,
+            'annual_bonus_2025': annual_bonus_2025,
+            'operating_total': operating_total,
+            'total': operating_total + annual_bonus_2025,
             'record_count': len(self.real_cost_records),
         }

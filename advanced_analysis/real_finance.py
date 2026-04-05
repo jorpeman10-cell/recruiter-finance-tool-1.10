@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-真实财务数据模块
-支持导入真实工资表、报销表、固定支出表，并进行成本分摊
+财务状况数据模块
+支持导入真实工资表、报销表、固定支出表、奖金递延表，并进行成本分摊
 """
 
 import math
@@ -216,7 +216,7 @@ def load_real_reimburse_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]
             date_val = datetime.now()
         
         consultant = None
-        for col in ['consultant', '顾问', '姓名', 'name', '用户', '员工', '部门']:
+        for col in ['consultant', '顾问姓名', '顾问', '姓名', 'name', '用户', '员工', '部门']:
             if col in row and pd.notna(row[col]):
                 consultant = str(row[col]).strip()
                 break
@@ -298,6 +298,12 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
         if not date_val:
             date_val = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
+        consultant = None
+        for col in ['consultant', '顾问姓名', '顾问', '姓名', 'name', '用户', '员工', '部门']:
+            if col in row and pd.notna(row[col]):
+                consultant = str(row[col]).strip()
+                break
+        
         sub_category = _extract_expense_type(row)
         
         # 如果有费用类型列，跳过工资/差旅/招待类
@@ -312,8 +318,8 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
                 amount = _to_float(row[col])
                 break
         
-        # 跳过汇总行
-        if not sub_category and amount > 100000:
+        # 跳过汇总行（空费用类型且没有顾问/部门的金额大数）
+        if not sub_category and not consultant and amount > 100000:
             continue
         if amount <= 0:
             continue
@@ -324,14 +330,20 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
                 description = str(row[col]).strip()
                 break
         
+        # 识别 2025 年度奖金递延
+        sub_category_out = sub_category
+        if not sub_category_out:
+            if '2025年度奖金' in description or '奖金递延' in description:
+                sub_category_out = 'annual_bonus_2025'
+        
         records.append(RealCostRecord(
             record_id=f"FXD-{uuid.uuid4().hex[:8]}",
             date=date_val,
             category='fixed',
             amount=amount,
-            consultant=None,
-            description=description or sub_category,
-            sub_category=sub_category
+            consultant=consultant,
+            description=description or sub_category_out,
+            sub_category=sub_category_out
         ))
     return records
 
@@ -367,18 +379,15 @@ def _overlap_days(range_start: datetime, range_end: datetime,
                   record_date: datetime) -> float:
     """
     计算一个月度记录与某日期区间的重叠天数比例（0~1）
-    如果 record_date 是当月1号，我们认为它代表整个月
+    财务记录无论日期是当月几号，都视为该月整月的费用
     返回：重叠天数 / 当月总天数
     """
     month_start = datetime(record_date.year, record_date.month, 1)
     month_days = _days_in_month(record_date.year, record_date.month)
-    if record_date.day != 1:
-        # 如果不是1号，按单日算（不太可能，但兼容）
-        record_day_start = record_date
-        record_day_end = record_date + timedelta(days=1)
-    else:
-        record_day_start = month_start
-        record_day_end = month_start + timedelta(days=month_days)
+    
+    # 财务记录视为当月整月费用
+    record_day_start = month_start
+    record_day_end = month_start + timedelta(days=month_days)
     
     overlap_start = max(range_start, record_day_start)
     overlap_end = min(range_end, record_day_end)
@@ -501,6 +510,7 @@ def calculate_monthly_real_summary(
     salary = 0.0
     reimburse = 0.0
     fixed = 0.0
+    annual_bonus_2025 = 0.0
     
     for r in all_records:
         if r.category == 'salary':
@@ -511,13 +521,17 @@ def calculate_monthly_real_summary(
             reimburse += r.amount * ratio
         elif r.category == 'fixed':
             ratio = _overlap_days(month_start, month_end, r.date)
-            fixed += r.amount * ratio
+            if r.sub_category == 'annual_bonus_2025':
+                annual_bonus_2025 += r.amount * ratio
+            else:
+                fixed += r.amount * ratio
     
     result = {
         'salary': salary,
         'reimburse': reimburse,
         'fixed': fixed,
-        'total': salary + reimburse + fixed,
+        'annual_bonus_2025': annual_bonus_2025,
+        'total': salary + reimburse + fixed + annual_bonus_2025,
     }
     
     if positions_revenue:

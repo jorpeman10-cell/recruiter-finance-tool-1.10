@@ -34,7 +34,14 @@ DIR_TYPE_MAP = {
     'real_finance': 'real_finance',
     'real': 'real_finance',
     '真实财务': 'real_finance',
+    '财务状况': 'real_finance',
     'finance': 'real_finance',
+    'salary': 'salary',
+    '工资': 'salary',
+    'reimburse': 'reimburse',
+    '报销': 'reimburse',
+    'fixed': 'fixed',
+    '固定': 'fixed',
 }
 
 # 文件名关键词 -> 子类型映射（用于文件名匹配）
@@ -50,6 +57,8 @@ FILENAME_SUBTYPE_KEYWORDS = {
     'expense': 'reimburse',
     'fixed': 'fixed',
     '固定': 'fixed',
+    '奖金': 'fixed',
+    'bonus': 'fixed',
     '房租': 'fixed',
     'rent': 'fixed',
     'admin': 'fixed',
@@ -120,6 +129,18 @@ def _save_import_log(base_path: str, log: Dict):
         print(f"保存导入日志失败: {e}")
 
 
+def _is_file_locked(path: str) -> bool:
+    """检查文件是否被其他进程锁定（尝试重命名到临时名）"""
+    import tempfile
+    tmp_path = path + '.tmpcheck'
+    try:
+        os.rename(path, tmp_path)
+        os.rename(tmp_path, path)
+        return False
+    except (PermissionError, OSError):
+        return True
+
+
 def _read_dataframe(path: str) -> Optional[pd.DataFrame]:
     """读取 Excel 或 CSV 文件为 DataFrame"""
     try:
@@ -159,13 +180,26 @@ def scan_and_import(analyzer, base_path: str) -> List[Dict]:
     
     # 遍历所有文件
     for root, dirs, files in os.walk(base_path):
-        # 跳过日志文件本身
-        files = [f for f in files if f != IMPORT_LOG_NAME and f.lower().endswith(SUPPORTED_EXTS)]
+        # 跳过 backup 目录和临时文件
+        dirs[:] = [d for d in dirs if d.lower() != 'backup']
+        files = [f for f in files if f != IMPORT_LOG_NAME and not f.startswith('~$') and f.lower().endswith(SUPPORTED_EXTS)]
+        # 跳过已知的旧汇总/无效文件
+        files = [f for f in files if '预算' not in f and '实际' not in f]
         
         for filename in files:
             full_path = os.path.join(root, filename)
             rel_path = os.path.relpath(full_path, base_path)
             fingerprint = _get_file_fingerprint(full_path)
+            
+            # 检查文件是否被锁定
+            if _is_file_locked(full_path):
+                results.append({
+                    'file': rel_path,
+                    'type': 'unknown',
+                    'status': 'skipped',
+                    'message': '文件正被其他程序使用中，请关闭后重试'
+                })
+                continue
             
             # 检查是否已经导入过且未变化
             existing = log['files'].get(rel_path, {})
@@ -203,10 +237,40 @@ def scan_and_import(analyzer, base_path: str) -> List[Dict]:
                         if pd.notna(name):
                             salary = float(row['base_salary']) if pd.notna(row.get('base_salary')) else 20000
                             is_active = bool(row.get('is_active', True))
+                            avg_positions = 6
+                            if pd.notna(row.get('avg_positions')):
+                                try:
+                                    avg_positions = int(row['avg_positions'])
+                                except Exception:
+                                    pass
+                            
+                            join_date = None
+                            for col in ['join_date', '入职日期', '入职时间', 'onboard_date']:
+                                if col in row and pd.notna(row[col]):
+                                    try:
+                                        join_date = pd.to_datetime(row[col]).to_pydatetime()
+                                    except Exception:
+                                        pass
+                                    if join_date:
+                                        break
+                            
+                            leave_date = None
+                            for col in ['leave_date', '离职日期', '离职时间', 'offboard_date']:
+                                if col in row and pd.notna(row[col]):
+                                    try:
+                                        leave_date = pd.to_datetime(row[col]).to_pydatetime()
+                                    except Exception:
+                                        pass
+                                    if leave_date:
+                                        break
+                            
                             analyzer.consultant_configs[name] = {
                                 'monthly_salary': salary,
                                 'is_active': is_active,
-                                'salary_multiplier': 3.0
+                                'salary_multiplier': 3.0,
+                                'avg_positions': avg_positions,
+                                'join_date': join_date,
+                                'leave_date': leave_date,
                             }
                 elif file_type == 'forecast':
                     analyzer.load_forecast_from_dataframe(df)

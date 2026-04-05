@@ -198,12 +198,13 @@ def render_sidebar():
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔄 自动同步")
     
-    with st.sidebar.expander("文件夹自动监控", expanded=False):
+    with st.sidebar.expander("📁 文件夹自动监控", expanded=False):
         watched_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'watched')
         watched_base = os.path.abspath(watched_base)
         auto_import.ensure_watched_dirs(watched_base)
         
         st.write(f"**监控目录:** `{watched_base}`")
+        st.caption("📂 将Excel/CSV文件放入对应子目录，点击『立即扫描』自动导入")
         
         if st.button("🔄 立即扫描", use_container_width=True, key="auto_scan_btn"):
             with st.spinner("扫描中..."):
@@ -235,7 +236,7 @@ def render_sidebar():
     # 核算模式切换
     if 'use_real_costs' not in analyzer.config:
         analyzer.config['use_real_costs'] = False
-    mode_options = {False: "假设模式 (3倍工资估算)", True: "真实财务模式 (实际工资/报销)"}
+    mode_options = {False: "假设模式 (3倍工资估算)", True: "财务状况分析模式 (实际工资/报销/固定)"}
     current_mode = analyzer.config.get('use_real_costs', False)
     selected_mode = st.sidebar.radio(
         "核算模式",
@@ -281,13 +282,13 @@ def render_sidebar():
             st.sidebar.write(f"- Forecast: {len(analyzer.forecast_positions)}条")
         if analyzer.real_cost_records:
             real_summary = analyzer.get_real_cost_summary()
-            st.sidebar.write(f"- 真实财务: {real_summary['record_count']}条")
+            st.sidebar.write(f"- 财务状况: {real_summary['record_count']}条")
     else:
         st.sidebar.info("👆 请先上传数据文件")
     
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 🔐 访问控制")
-    with st.sidebar.expander("真实财务密码", expanded=False):
+    with st.sidebar.expander("财务状况密码", expanded=False):
         current_pwd_set = auth_guard.is_real_finance_protected()
         if current_pwd_set:
             st.caption("当前已设置访问密码")
@@ -305,7 +306,7 @@ def render_sidebar():
                 else:
                     auth_guard.set_real_finance_password(new_pwd)
                     if new_pwd:
-                        st.success("密码已设置")
+                        st.success("财务状况分析密码已设置")
                     else:
                         st.success("密码已清除")
         with col_b:
@@ -429,8 +430,19 @@ def format_consultant_details(details: dict):
     col1, col2, col3 = st.columns(3)
     col1.metric("月薪", f"{cost['monthly_salary']:,.0f}")
     col2.metric("成本倍数", f"×{cost['salary_multiplier']}")
-    col3.metric("90天成本", f"{cost['cost_90d']:,.0f}")
+    col3.metric("Q1累计成本", f"{cost['period_cost']:,.0f}")
     st.caption(f"计算公式：{cost['calculation']}")
+    
+    # 核心指标卡片
+    st.markdown("##### 📊 核心指标")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("回款利润", f"{details['actual_profit']:,.0f}", f"利润率 {details['actual_margin']}")
+    with c2:
+        st.metric("Offer业绩余粮", f"{details['offer_reserve_months']:.1f}个月")
+    with c3:
+        coverage = details['forecast_coverage'] * 100
+        st.metric("Forecast覆盖", f"{coverage:.0f}%", help="覆盖未来6个月成本的比例")
     
     # ========== 实际回款明细 ==========
     st.markdown(f"##### ✅ 实际已回款明细 ({details['actual_collection_count']}笔)")
@@ -450,7 +462,7 @@ def format_consultant_details(details: dict):
         df_offer.columns = ['职位ID', '客户', '职位名称', '预期金额', '预计回款日', '剩余天数', '状态']
         df_offer['预期金额'] = df_offer['预期金额'].apply(lambda x: f"{x:,.0f}")
         st.dataframe(df_offer, use_container_width=True, hide_index=True)
-        st.info(f"**含Offer待回后：收入 {details['offer_revenue']:,.0f}元，利润：{details['offer_profit']:,.0f}元，利润率：{details['offer_margin']}**")
+        st.info(f"**Offer待回合计：{details['offer_pending']:,.0f}元，相当于 {details['offer_reserve_months']:.1f} 个月业绩余粮**")
     else:
         st.info("暂无90天内Offer待回款记录")
     
@@ -463,7 +475,7 @@ def format_consultant_details(details: dict):
         df_fore['加权收入'] = df_fore['加权收入'].apply(lambda x: f"{x:,.0f}")
         df_fore['成功率'] = df_fore['成功率'].apply(lambda x: f"{x*100:.0f}%")
         st.dataframe(df_fore, use_container_width=True, hide_index=True)
-        st.info(f"**含Forecast后总收入：{details['total_revenue']:,.0f}元**")
+        st.info(f"**Forecast加权收入：{details['total_forecast']:,.0f}元，覆盖未来6个月成本（{details['future_6m_cost']:,.0f}元）的 {details['forecast_coverage']*100:.0f}%**")
     else:
         st.info("暂无90天内Forecast回款")
     
@@ -476,11 +488,12 @@ def format_consultant_details(details: dict):
         st.metric("实际回款利润", f"{details['actual_profit']:,.0f}", 
                  f"利润率 {details['actual_margin']}")
     with col2:
-        st.metric("含Offer利润", f"{details['offer_profit']:,.0f}",
-                 f"利润率 {details['offer_margin']}")
+        st.metric("Offer业绩余粮", f"{details['offer_reserve_months']:.1f}个月",
+                 help="现有Offer能覆盖多少个月的月成本")
     with col3:
-        st.metric("总预测利润", f"{details['net_profit']:,.0f}",
-                 f"利润率 {details['profit_margin']}")
+        coverage = details['forecast_coverage'] * 100
+        st.metric("Forecast覆盖", f"{coverage:.0f}%",
+                 help=f"未来6个月成本 {details['future_6m_cost']:,.0f}元，Forecast覆盖比例")
     
     # 计算过程
     st.markdown("##### 🧮 详细计算过程")
@@ -491,7 +504,7 @@ def format_consultant_details(details: dict):
 def render_consultant_profit():
     """渲染顾问盈亏分析页面"""
     st.markdown('<div class="main-header">📊 顾问盈亏分析</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">90天滚动盈亏预测与风险评估（拆分：实际回款 | Offer待回 | Forecast）</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">2026年Q1顾问盈亏分析（成本基数：1-3月实际在岗月数×月薪×3）</div>', unsafe_allow_html=True)
     
     analyzer = st.session_state.analyzer
     
@@ -505,28 +518,28 @@ def render_consultant_profit():
         st.warning("暂无足够数据生成分析")
         return
     
-    # ========== 汇总指标（拆分展示）==========
-    st.markdown("##### 💰 90天收入构成（拆分实际回款、Offer待回、Forecast）")
+    # ========== 汇总指标 ==========
+    st.markdown("##### 💰 Q1核心指标汇总")
     
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         actual_90d = forecast_df['已回款'].sum()
         st.metric("已回款", format_currency(actual_90d), 
-                 help="已到账的回款（累计贡献）")
+                 help="1-3月已到账的回款")
     with col2:
-        offer_90d = forecast_df['90天Offer待回'].sum()
-        st.metric("90天Offer待回", format_currency(offer_90d),
-                 help="已成单但未回款的预期收入")
+        total_profit = forecast_df['回款利润'].sum()
+        st.metric("回款总利润", format_currency(total_profit),
+                 help="已回款 - Q1实际成本")
     with col3:
-        forecast_90d = forecast_df['90天Forecast'].sum()
-        st.metric("90天Forecast", format_currency(forecast_90d),
-                 help="在途单的加权预期")
+        avg_reserve = forecast_df['Offer余粮(月)'].mean()
+        st.metric("平均Offer余粮", f"{avg_reserve:.1f}个月",
+                 help="顾问平均能靠现有Offer再撑多少个月")
     with col4:
-        total_revenue = forecast_df['预测总收入'].sum()
-        st.metric("预测总收入", format_currency(total_revenue))
+        low_coverage = (forecast_df['Forecast覆盖数值'] < 0.5).sum()
+        st.metric("Pipeline不足人数", f"{low_coverage}人",
+                 help="Forecast覆盖未来6个月成本不足50%的顾问")
     
-    # 累计贡献 vs 预期贡献 对比
-    st.markdown("##### 📊 累计贡献 vs 预期贡献")
+    st.markdown("##### 📊 累计资源储备")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -550,18 +563,16 @@ def render_consultant_profit():
     # 创建简化版展示表格
     display_cols = [
         '顾问',
-        '已回款', '实际回款利润', '实际回款利润率',
-        '90天Offer待回', '含Offer利润', '含Offer利润率',
-        '90天Forecast', '预测净利润', '预测利润率',
+        '已回款', 'Q1成本', '回款利润', '回款利润率',
+        '90天Offer待回', 'Offer余粮(月)',
+        '未来6个月成本', 'Forecast覆盖率',
         '风险评级'
     ]
     
     display_df = forecast_df[display_cols].copy()
     
     # 格式化金额列
-    currency_cols = ['已回款', '90天Offer待回', '90天Forecast',
-                     '实际回款利润', '含Offer利润', '预测净利润',
-                     '累计实际回款', '累计Offer待回', '累计Forecast']
+    currency_cols = ['已回款', 'Q1成本', '回款利润', '90天Offer待回', '未来6个月成本']
     for col in currency_cols:
         if col in display_df.columns:
             display_df[col] = display_df[col].apply(format_currency)
@@ -618,10 +629,7 @@ def render_consultant_profit():
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # 利润率对比
-        fig2 = go.Figure()
-        
-        # 转换利润率字符串为数值
+        # 利润能力 vs 业绩余粮 vs Pipeline覆盖（拆分为三个独立小图，更清晰）
         def parse_margin(margin_str):
             if margin_str == '-' or pd.isna(margin_str):
                 return None
@@ -631,44 +639,80 @@ def render_consultant_profit():
                 return None
         
         compare_df_plot = compare_df.copy()
-        compare_df_plot['实际利润率'] = compare_df_plot['实际回款利润率'].apply(parse_margin)
-        compare_df_plot['含Offer利润率'] = compare_df_plot['含Offer利润率'].apply(parse_margin)
-        compare_df_plot['总利润率'] = compare_df_plot['预测利润率'].apply(parse_margin)
+        compare_df_plot['回款利润率数值'] = compare_df_plot['回款利润率'].apply(parse_margin)
         
-        fig2.add_trace(go.Bar(
-            name='仅实际回款',
-            x=compare_df_plot['顾问'],
-            y=compare_df_plot['实际利润率'],
-            marker_color='#10B981'
-        ))
-        fig2.add_trace(go.Bar(
-            name='含Offer待回',
-            x=compare_df_plot['顾问'],
-            y=compare_df_plot['含Offer利润率'],
-            marker_color='#3B82F6'
-        ))
-        fig2.add_trace(go.Bar(
-            name='含Forecast',
-            x=compare_df_plot['顾问'],
-            y=compare_df_plot['总利润率'],
-            marker_color='#8B5CF6'
-        ))
+        st.markdown("##### 📊 顾问盈利能力与资源储备分析")
+        c1, c2, c3 = st.columns(3)
         
-        fig2.update_layout(
-            title='利润率对比（%）- 不同场景下的盈利能力',
-            barmode='group',
-            xaxis_title='顾问',
-            yaxis_title='利润率 (%)',
-            template='plotly_white',
-            height=400,
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-        )
+        # 小图1：回款利润率
+        with c1:
+            fig_margin = go.Figure()
+            fig_margin.add_trace(go.Bar(
+                x=compare_df_plot['顾问'],
+                y=compare_df_plot['回款利润率数值'],
+                marker_color='#10B981',
+                text=compare_df_plot['回款利润率数值'].apply(lambda x: f"{x:.0f}%" if pd.notna(x) else '-'),
+                textposition='outside'
+            ))
+            fig_margin.add_hline(y=20, line_dash="dash", line_color="red",
+                                annotation_text="目标20%", annotation_position="right")
+            fig_margin.update_layout(
+                title=dict(text='回款利润率', font=dict(size=14)),
+                xaxis_title='',
+                yaxis_title='利润率(%)',
+                template='plotly_white',
+                height=320,
+                margin=dict(t=40, b=40),
+                showlegend=False
+            )
+            st.plotly_chart(fig_margin, use_container_width=True, key=f"margin_{selected_consultants}")
         
-        # 添加20%利润目标线
-        fig2.add_hline(y=20, line_dash="dash", line_color="red", 
-                      annotation_text="20%目标线", annotation_position="right")
+        # 小图2：Offer余粮
+        with c2:
+            fig_reserve = go.Figure()
+            fig_reserve.add_trace(go.Bar(
+                x=compare_df_plot['顾问'],
+                y=compare_df_plot['Offer余粮(月)'],
+                marker_color='#3B82F6',
+                text=compare_df_plot['Offer余粮(月)'].apply(lambda x: f"{x:.1f}月"),
+                textposition='outside'
+            ))
+            fig_reserve.add_hline(y=3, line_dash="dash", line_color="red",
+                                 annotation_text="安全线3月", annotation_position="right")
+            fig_reserve.update_layout(
+                title=dict(text='Offer业绩余粮', font=dict(size=14)),
+                xaxis_title='',
+                yaxis_title='余粮月数',
+                template='plotly_white',
+                height=320,
+                margin=dict(t=40, b=40),
+                showlegend=False
+            )
+            st.plotly_chart(fig_reserve, use_container_width=True, key=f"reserve_{selected_consultants}")
         
-        st.plotly_chart(fig2, use_container_width=True)
+        # 小图3：Forecast覆盖率
+        with c3:
+            fig_cover = go.Figure()
+            cover_vals = compare_df_plot['Forecast覆盖数值'] * 100
+            fig_cover.add_trace(go.Bar(
+                x=compare_df_plot['顾问'],
+                y=cover_vals,
+                marker_color='#F59E0B',
+                text=cover_vals.apply(lambda x: f"{x:.0f}%"),
+                textposition='outside'
+            ))
+            fig_cover.add_hline(y=50, line_dash="dash", line_color="red",
+                               annotation_text="目标50%", annotation_position="right")
+            fig_cover.update_layout(
+                title=dict(text='Forecast覆盖未来6个月成本', font=dict(size=14)),
+                xaxis_title='',
+                yaxis_title='覆盖率(%)',
+                template='plotly_white',
+                height=320,
+                margin=dict(t=40, b=40),
+                showlegend=False
+            )
+            st.plotly_chart(fig_cover, use_container_width=True, key=f"cover_{selected_consultants}")
     
     # 核算明细展开
     st.markdown("---")
@@ -683,7 +727,7 @@ def render_consultant_profit():
         )
         
         if selected_consultant:
-            with st.expander(f"📊 {selected_consultant} 的90天盈亏核算明细", expanded=True):
+            with st.expander(f"📊 {selected_consultant} 的Q1盈亏与资源储备明细", expanded=True):
                 details = analyzer.get_consultant_profit_details(selected_consultant, forecast_days=90)
                 format_consultant_details(details)
     
@@ -1059,7 +1103,7 @@ def main():
         "📅 现金流日历",
         "🔮 情景模拟",
         "🔔 智能预警",
-        "📒 真实财务",
+        "📒 财务状况分析",
     ])
     
     with tab1:
