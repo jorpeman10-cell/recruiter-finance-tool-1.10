@@ -4,6 +4,57 @@
 """
 
 import pandas as pd
+
+
+# ============ 团队分类映射 ============
+# Commercial 团队：市场、销售、准入（market access）
+# R&D 团队：CMC 和 CO（CO 包括 RA、PV、医学 和 CO）
+TEAM_CATEGORY_MAP = {
+    # Commercial
+    'commercial': 'Commercial',
+    '市场': 'Commercial',
+    'marketing': 'Commercial',
+    '销售': 'Commercial',
+    'sales': 'Commercial',
+    '准入': 'Commercial',
+    'market access': 'Commercial',
+    'ma': 'Commercial',
+    'ma&ga': 'Commercial',
+    'ga': 'Commercial',
+    'mkt': 'Commercial',
+    # R&D (包括 CO、CMC、RA、PV、医学、临床等)
+    'cmc': 'R&D',
+    'co': 'R&D',
+    'ra': 'R&D',
+    'pv': 'R&D',
+    '医学': 'R&D',
+    'medical': 'R&D',
+    '临床': 'R&D',
+}
+
+
+def classify_team_category(team_name: str) -> str:
+    """
+    根据团队名称分类为大类
+    
+    Returns:
+        'Commercial', 'R&D', 或 'Other'
+    """
+    if not team_name:
+        return 'Other'
+    
+    team_lower = team_name.lower().strip()
+    
+    # 直接匹配
+    if team_lower in TEAM_CATEGORY_MAP:
+        return TEAM_CATEGORY_MAP[team_lower]
+    
+    # 关键词匹配
+    for keyword, category in TEAM_CATEGORY_MAP.items():
+        if keyword in team_lower:
+            return category
+    
+    return 'Other'
 import numpy as np
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
@@ -346,6 +397,7 @@ class ConsultantVelocity:
     """顾问产能速度指标"""
     consultant_name: str
     team: str = ""
+    team_category: str = ""  # 团队大类：Commercial / R&D / Other
     
     # 职位处理能力
     active_positions: int = 0  # 在操作职位数
@@ -388,8 +440,10 @@ class AdvancedRecruitmentAnalyzer:
         self.positions: List[PositionLifecycle] = []  # 实际职位（已成单/已关闭）
         self.forecast_positions: List[ForecastPosition] = []  # 预测职位（在途单）
         self.cashflow_events: List[CashFlowEvent] = []
-        self.consultant_configs: Dict[str, dict] = {}  # 顾问配置
+        self.consultant_configs: Dict[str, dict] = {}  # 顾问配置（从Excel加载）
+        self.consultant_db_info: Dict[str, dict] = {}  # 顾问数据库信息（从user表加载，含入职/离职日期）
         self.real_cost_records: List[RealCostRecord] = []  # 财务状况成本记录
+        self.overdue_from_invoices: float = 0  # 基于invoice表的逾期未回款金额
         
         # 配置参数
         self.config = {
@@ -424,6 +478,76 @@ class AdvancedRecruitmentAnalyzer:
     def add_cashflow_event(self, event: CashFlowEvent):
         """添加现金流事件"""
         self.cashflow_events.append(event)
+    
+    def load_consultant_db_info(self, users_df: pd.DataFrame):
+        """
+        从数据库user表加载顾问信息
+        
+        Args:
+            users_df: 包含id, englishName, chineseName, status, joinInDate, leaveDate的DataFrame
+        """
+        self.consultant_db_info = {}
+        for _, row in users_df.iterrows():
+            name = f"{row.get('englishName', '') or ''} {row.get('chineseName', '') or ''}".strip()
+            if not name:
+                continue
+            
+            # 解析日期
+            join_date = None
+            leave_date = None
+            try:
+                if pd.notna(row.get('joinInDate')):
+                    join_date = pd.to_datetime(row['joinInDate'])
+                if pd.notna(row.get('leaveDate')):
+                    leave_date = pd.to_datetime(row['leaveDate'])
+            except:
+                pass
+            
+            self.consultant_db_info[name] = {
+                'id': row.get('id'),
+                'status': row.get('status', ''),
+                'join_date': join_date,
+                'leave_date': leave_date,
+                'english_name': row.get('englishName', ''),
+                'chinese_name': row.get('chineseName', ''),
+            }
+    
+    def _get_db_status(self, consultant_name: str) -> tuple:
+        """
+        从数据库获取顾问状态
+        
+        Returns:
+            (status_code, status_label, join_date, leave_date)
+            status_code: 2=在职, 1=已离职, 0=未配置
+        """
+        if not self.consultant_db_info:
+            return None, None, None, None
+        
+        # 精确匹配
+        if consultant_name in self.consultant_db_info:
+            info = self.consultant_db_info[consultant_name]
+            status = info.get('status', '')
+            if status == 'Active':
+                return 2, '在职', info.get('join_date'), info.get('leave_date')
+            elif status == 'Leave':
+                return 1, '已离职', info.get('join_date'), info.get('leave_date')
+            else:
+                return 1, '已离职', info.get('join_date'), info.get('leave_date')
+        
+        # 模糊匹配
+        for db_name, info in self.consultant_db_info.items():
+            if (db_name == consultant_name or 
+                db_name in consultant_name or 
+                consultant_name in db_name):
+                status = info.get('status', '')
+                if status == 'Active':
+                    return 2, '在职', info.get('join_date'), info.get('leave_date')
+                elif status == 'Leave':
+                    return 1, '已离职', info.get('join_date'), info.get('leave_date')
+                else:
+                    return 1, '已离职', info.get('join_date'), info.get('leave_date')
+        
+        return None, None, None, None
     
     def load_positions_from_dataframe(self, df: pd.DataFrame, clear_existing: bool = True):
         """
@@ -488,7 +612,9 @@ class AdvancedRecruitmentAnalyzer:
                     for col in cols:
                         if col in row and pd.notna(row[col]):
                             try:
-                                return pd.to_datetime(row[col])
+                                val = pd.to_datetime(row[col])
+                                if pd.notna(val):
+                                    return val
                             except:
                                 continue
                     return None
@@ -667,11 +793,13 @@ class AdvancedRecruitmentAnalyzer:
         """
         cycles = []
         for p in self.positions:
-            if p.payment_date and p.onboard_date:
+            if pd.notna(p.payment_date) and pd.notna(p.onboard_date):
                 # 只计算入职到回款的周期（账期）
                 cycles.append((p.payment_date - p.onboard_date).days)
         if cycles:
-            return int(np.mean(cycles))
+            mean_cycle = np.mean(cycles)
+            if not np.isnan(mean_cycle):
+                return int(mean_cycle)
         return 60  # 默认60天账期
     
     def get_historical_offer_to_payment_cycle(self) -> int:
@@ -890,6 +1018,11 @@ class AdvancedRecruitmentAnalyzer:
             p.actual_payment for p in self.positions
             if p.payment_date and p.payment_date.year == current_year and p.payment_date <= today
         )
+        # Fallback：使用 consultant_collections（从 invoiceassignment 获取的顾问回款总和）
+        if hasattr(self, 'consultant_collections') and self.consultant_collections:
+            cc_total = sum(d.get('total_received', 0) for d in self.consultant_collections.values())
+            if cc_total > collected_revenue:
+                collected_revenue = cc_total
         
         # 3. 未来90天/180天即将到账的已确认回款
         # 包括：已填写payment_date的回款 + 已成单但未填写payment_date的（根据offer推算）
@@ -897,7 +1030,7 @@ class AdvancedRecruitmentAnalyzer:
         offer_to_payment_days = self.AVG_OFFER_TO_ONBOARD_DAYS + avg_payment_cycle
         
         future_90d_collected = 0
-        future_180d_collected = 0
+        future_91_180d_collected = 0
         overdue_collected = 0  # 已逾期的回款
         
         for p in self.positions:
@@ -915,8 +1048,8 @@ class AdvancedRecruitmentAnalyzer:
                 # 已填写回款日期的
                 if today <= p.payment_date <= today + timedelta(days=90):
                     future_90d_collected += expected_amount
-                elif today <= p.payment_date <= today + timedelta(days=180):
-                    future_180d_collected += expected_amount
+                elif today + timedelta(days=90) < p.payment_date <= today + timedelta(days=180):
+                    future_91_180d_collected += expected_amount
             elif not p.payment_date and p.offer_date:
                 # 未填写回款日期，但有offer_date的，推算回款日期
                 # 使用职位级别的账期（如果有设置）
@@ -926,12 +1059,32 @@ class AdvancedRecruitmentAnalyzer:
                 days_until = (estimated_payment_date - today).days
                 
                 if days_until < 0:
-                    # 已逾期，但会计入逾期待回款
-                    overdue_collected += expected_amount
+                    # 已逾期 —— 如果已从invoice表获取真实逾期金额，这里不再重复累加
+                    # 否则使用推算值作为fallback
+                    pass  # 见下方：优先使用invoice真实数据
                 elif days_until <= 90:
                     future_90d_collected += expected_amount
                 elif days_until <= 180:
-                    future_180d_collected += expected_amount
+                    future_91_180d_collected += expected_amount
+        
+        # 优先使用基于invoice表的真实逾期金额（数据库同步时获取）
+        # 这比基于Offer日期的推算更准确
+        if hasattr(self, 'overdue_from_invoices') and self.overdue_from_invoices > 0:
+            overdue_collected = self.overdue_from_invoices
+        else:
+            # Fallback：没有invoice数据时，使用offer日期推算（但会高估逾期金额）
+            for p in self.positions:
+                if p.payment_date or not p.offer_date or p.fee_amount <= 0:
+                    continue
+                payment_cycle = self.get_position_payment_cycle(p)
+                offer_to_payment_days = self.AVG_OFFER_TO_ONBOARD_DAYS + payment_cycle
+                estimated_payment_date = p.offer_date + timedelta(days=offer_to_payment_days)
+                days_until = (estimated_payment_date - today).days
+                if days_until < 0:
+                    overdue_collected += p.fee_amount
+        
+        # 180天回款 = 90天内回款 + 91-180天回款（财务恒等式一致性）
+        future_180d_collected = future_90d_collected + future_91_180d_collected
         
         # 4. Forecast 预期回款（基于预计回款日期和成功率加权）
         # 先确保 forecast 都有 expected_payment_date
@@ -1044,7 +1197,7 @@ class AdvancedRecruitmentAnalyzer:
                 
                 # 预计年薪（ForecastAssignment中的'收费基数'）
                 estimated_salary = 0.0
-                for col in ['estimated_salary', '预计年薪', '年薪', '收费基数']:
+                for col in ['estimated_salary', 'charge_package', '预计年薪', '年薪', '收费基数']:
                     if col in row and pd.notna(row[col]):
                         val = pd.to_numeric(row[col], errors='coerce')
                         if pd.notna(val):
@@ -1064,7 +1217,7 @@ class AdvancedRecruitmentAnalyzer:
                 
                 # 预计佣金（ForecastAssignment中的'Forecast * 成功率'或'Forecast分配'）
                 estimated_fee = 0.0
-                for col in ['estimated_fee', '预计佣金', '佣金', 'Forecast * 成功率', 'Forecast分配']:
+                for col in ['estimated_fee', 'forecast_fee', '预计佣金', '佣金', 'Forecast * 成功率', 'Forecast分配']:
                     if col in row and pd.notna(row[col]):
                         val = pd.to_numeric(row[col], errors='coerce')
                         if pd.notna(val):
@@ -1101,20 +1254,24 @@ class AdvancedRecruitmentAnalyzer:
                 
                 # 日期处理
                 start_date = None
-                for col in ['start_date', '开始日期', 'created_date', '发布日期']:
+                for col in ['start_date', 'job_open_date', 'openDate', '开始日期', 'created_date', '发布日期']:
                     if col in row and pd.notna(row[col]):
                         try:
-                            start_date = pd.to_datetime(row[col])
-                            break
+                            val = pd.to_datetime(row[col])
+                            if pd.notna(val):
+                                start_date = val
+                                break
                         except:
                             continue
                 
                 expected_close_date = None
-                for col in ['expected_close_date', '预计成交日期', '预计成功时间']:
+                for col in ['expected_close_date', 'close_date', '预计成交日期', '预计成功时间']:
                     if col in row and pd.notna(row[col]):
                         try:
-                            expected_close_date = pd.to_datetime(row[col])
-                            break
+                            val = pd.to_datetime(row[col])
+                            if pd.notna(val):
+                                expected_close_date = val
+                                break
                         except:
                             continue
                 
@@ -1415,20 +1572,67 @@ class AdvancedRecruitmentAnalyzer:
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         forecast_end = today + timedelta(days=forecast_days)
         
-        # 只获取在职顾问
+        # 构建顾问列表：在职顾问 + 有实际回款/发票的顾问（含已离职）
         active_consultants = set()
+        
+        def _names_match(name1, name2):
+            """检查两个顾问名字是否指向同一个人"""
+            if not name1 or not name2:
+                return False
+            if name1 == name2:
+                return True
+            if name1.startswith(name2) or name2.startswith(name1):
+                return True
+            if name1 in name2 or name2 in name1:
+                return True
+            return False
+        
+        # 排除的运营/非业务顾问名单
+        EXCLUDED_CONSULTANTS = [
+            '郭建飞', '黄铮', '李菁', '李文婷', 
+            'Karmen Huang', 'CSM 支持', 'SYS 账号',
+            'Kimbort Guo', 'Steven Huang', 'Lily Li', 
+            'Carrie Li', 'Karmen Huang',
+            'SYS', 'CSM', '系统账号', '客户支持'
+        ]
+        
+        def _is_excluded(name):
+            """检查是否是需要排除的运营/非业务顾问"""
+            if not name:
+                return True
+            return any(excluded in name for excluded in EXCLUDED_CONSULTANTS)
+        
+        # 1. 先加入在职顾问（排除运营团队）
         for name, config in self.consultant_configs.items():
-            if config.get('is_active', True):
+            if config.get('is_active', True) and not _is_excluded(name):
                 active_consultants.add(name)
         
-        # 如果没有顾问配置，从数据中推断
+        # 2. 补充有实际回款的顾问（排除运营团队）
+        if hasattr(self, 'consultant_collections') and self.consultant_collections:
+            for coll_name in self.consultant_collections.keys():
+                if _is_excluded(coll_name):
+                    continue
+                already_covered = any(_names_match(coll_name, existing) for existing in active_consultants)
+                if not already_covered:
+                    active_consultants.add(coll_name)
+        
+        # 3. 补充有未回款发票的顾问（排除运营团队）
+        if hasattr(self, 'consultant_invoice_assignments') and self.consultant_invoice_assignments:
+            for ia_name in self.consultant_invoice_assignments.keys():
+                if _is_excluded(ia_name):
+                    continue
+                already_covered = any(_names_match(ia_name, existing) for existing in active_consultants)
+                if not already_covered:
+                    active_consultants.add(ia_name)
+        
+        # 4. 如果仍为空，从 forecast/positions 推断（排除运营团队）
         if not active_consultants:
-            for p in self.positions:
-                if p.consultant:
-                    active_consultants.add(p.consultant)
             for f in self.forecast_positions:
-                if f.consultant:
+                if f.consultant and not _is_excluded(f.consultant):
                     active_consultants.add(f.consultant)
+            for p in self.positions:
+                if p.consultant and not _is_excluded(p.consultant):
+                    active_consultants.add(p.consultant)
         
         result = []
         
@@ -1446,40 +1650,86 @@ class AdvancedRecruitmentAnalyzer:
                 return True
             return False
         
+        # 辅助函数：获取顾问的团队信息
+        def get_consultant_team(consultant_name: str) -> tuple:
+            """返回 (team, team_category)"""
+            # 1. 优先从 consultant_configs 中读取（顾问配置表中的 team 字段）
+            if consultant_name in self.consultant_configs:
+                config = self.consultant_configs[consultant_name]
+                if 'team' in config and config['team']:
+                    team = config['team']
+                    return team, classify_team_category(team)
+            
+            # 2. 尝试匹配英文名/中文名的变体
+            for name_key, config in self.consultant_configs.items():
+                # 直接匹配或包含关系
+                if (name_key == consultant_name or 
+                    name_key in consultant_name or 
+                    consultant_name in name_key):
+                    if 'team' in config and config['team']:
+                        team = config['team']
+                        return team, classify_team_category(team)
+            
+            # 3. 从 positions 中查找（备选）
+            for p in self.positions:
+                if p.consultant == consultant_name or consultant_name in p.consultant or p.consultant in consultant_name:
+                    if p.team:
+                        return p.team, classify_team_category(p.team)
+            
+            # 4. 从 forecast_positions 中查找（备选）
+            for f in self.forecast_positions:
+                if f.consultant == consultant_name or consultant_name in f.consultant or f.consultant in consultant_name:
+                    if f.team:
+                        return f.team, classify_team_category(f.team)
+            
+            return '', 'Other'
+        
         for consultant in active_consultants:
+            # 获取团队信息
+            team, team_category = get_consultant_team(consultant)
+            
             # ========== 1. 实际已回款（累计贡献） ==========
-            # 已填写payment_date且实际到账的回款
+            # 优先使用 invoiceassignment 的顾问回款数据（更准确）
             actual_collected_90d = 0
             actual_collected_total = 0  # 累计实际回款总额
             
-            # ========== 2. Offer未回款（预期贡献） ==========
-            # 已成单（有offer_date）但尚未回款的部分
-            offer_pending_90d = 0
-            offer_pending_total = 0  # Offer未回款总额
+            # 尝试从 consultant_collections（invoice 表）获取顾问真实回款
+            has_invoice_data = False
+            if hasattr(self, 'consultant_collections') and self.consultant_collections:
+                for coll_name, coll_data in self.consultant_collections.items():
+                    if match_consultant(coll_name, consultant):
+                        actual_collected_total = coll_data.get('total_received', 0)
+                        # 90天内回款：consultant_collections 是 2026-01-01 以来的累计
+                        # 作为近似，全部计入 90 天（因为近期回款占主要部分）
+                        actual_collected_90d = actual_collected_total
+                        has_invoice_data = True
+                        break
             
-            for p in self.positions:
-                if not match_consultant(p.consultant, consultant) or not p.is_successful:
-                    continue
-                
-                # 已回款判断：payment_status="已回款"或"部分回款"
-                if p.payment_status in ['已回款', '部分回款', '回款完成']:
-                    # 累计实际回款（不管日期）
-                    actual_collected_total += p.actual_payment
-                    # 90天内回款：需要回款日期在未来90天内
-                    if p.payment_date and today <= p.payment_date <= forecast_end:
-                        actual_collected_90d += p.actual_payment
-                    # 如果已回款但没有回款日期，也算入90天（可能是近期回款）
-                    elif p.payment_status == '已回款' and (not p.payment_date or p.payment_date <= today):
-                        actual_collected_90d += p.actual_payment
-                elif p.offer_date and p.fee_amount > 0:
-                    # Offer未回款：已成单但未回款
-                    offer_pending_total += p.fee_amount
-                    # 推算回款日期
-                    payment_cycle = self.get_position_payment_cycle(p)
-                    offer_to_payment_days = self.AVG_OFFER_TO_ONBOARD_DAYS + payment_cycle
-                    payment_date = p.offer_date + timedelta(days=offer_to_payment_days)
-                    if today <= payment_date <= forecast_end:
-                        offer_pending_90d += p.fee_amount
+            # ========== 2. Offer未回款（预期贡献） ==========
+            # 优先使用 invoiceassignment 的个人分配金额（更准）
+            offer_pending_total = 0
+            has_invoice_assignment = False
+            if hasattr(self, 'consultant_invoice_assignments') and self.consultant_invoice_assignments:
+                for ia_name, ia_list in self.consultant_invoice_assignments.items():
+                    if match_consultant(ia_name, consultant):
+                        has_invoice_assignment = True
+                        for ia in ia_list:
+                            # 排除已回款和已作废的发票
+                            if ia['invoice_status'] not in ['Received', '回款完成', 'Reject']:
+                                offer_pending_total += ia['assigned_amount']
+            
+            # fallback：从 positions 累加（尚未开票的 offer）
+            # 只有当 consultant_invoice_assignments 中没有该顾问的任何数据时才 fallback
+            # （避免发票已Reject但positions中仍显示未回款的重复计算）
+            if offer_pending_total == 0 and not has_invoice_assignment:
+                for p in self.positions:
+                    if not match_consultant(p.consultant, consultant) or not p.is_successful:
+                        continue
+                    if p.payment_status not in ['已回款', '部分回款', '回款完成'] and p.offer_date and p.fee_amount > 0:
+                        offer_pending_total += p.fee_amount
+            
+            # 90天内Offer待回：暂用全部（因为 invoiceassignment 没有回款日期）
+            offer_pending_90d = offer_pending_total
             
             # ========== 3. Forecast预期（纯预期） ==========
             forecast_90d = 0
@@ -1495,10 +1745,9 @@ class AdvancedRecruitmentAnalyzer:
                     if today <= f.expected_payment_date <= forecast_end:
                         forecast_90d += f.weighted_revenue
             
-            # ========== 4. 成本计算 ==========
-            # 统一使用 2026年1-3月实际在岗成本作为基数
+            # ========== 4. 成本计算（实时：年初至今） ==========
             period_start = datetime(2026, 1, 1)
-            period_end = datetime(2026, 3, 31)
+            period_end = today
             period_cost = self._get_consultant_period_cost(consultant, period_start, period_end)
             
             if consultant in self.consultant_configs:
@@ -1507,24 +1756,91 @@ class AdvancedRecruitmentAnalyzer:
                 monthly_salary = self.config.get('consultant_monthly_salary', 15000)
             
             multiplier = self.config.get('salary_multiplier', 3.0)
-            # fallback：如果 period_cost 为 0（无工资记录且无日期），用默认3个月成本
-            cost = period_cost if period_cost > 0 else monthly_salary * multiplier * 3
+            # 当前月份数（用于fallback计算）
+            current_month = max(1, today.month)
+            
+            # ========== 4. 状态判断与成本计算 ==========
+            # 优先从数据库获取状态（更准确）
+            db_status_code, db_status_label, db_join_date, db_leave_date = self._get_db_status(consultant)
+            
+            # 回退到 consultant_configs（Excel配置）
+            in_configs_exact = consultant in self.consultant_configs
+            in_configs_fuzzy = False
+            config_active = True
+            matched_cfg = None
+            for cfg_name, cfg in self.consultant_configs.items():
+                if cfg_name == consultant or cfg_name.startswith(consultant) or consultant.startswith(cfg_name):
+                    in_configs_fuzzy = True
+                    config_active = cfg.get('is_active', True)
+                    matched_cfg = cfg
+                    break
+            
+            is_in_configs = in_configs_exact or in_configs_fuzzy
+            
+            # 使用数据库状态（优先）或配置状态
+            if db_status_code is not None:
+                status_code = db_status_code
+                status_label = db_status_label
+                join_date = db_join_date
+                leave_date = db_leave_date
+            elif is_in_configs:
+                status_code = 2 if config_active else 1
+                status_label = '在职' if config_active else '已离职'
+                join_date = None
+                leave_date = matched_cfg.get('leave_date') if matched_cfg else None
+            else:
+                status_code = 0
+                status_label = '未配置'
+                join_date = None
+                leave_date = None
+            
+            # 成本计算：按实际在岗月份核算
+            if period_cost > 0:
+                # 使用实际成本记录（最高优先级）
+                cost = period_cost
+            elif status_code == 2 and join_date:
+                # 在职且有入职日期：计算本年度实际在岗月数
+                active_months = self._calc_consultant_active_months(
+                    join_date, None, 
+                    datetime(2026, 1, 1), today
+                )
+                cost = monthly_salary * multiplier * active_months
+            elif status_code == 2:
+                # 在职但无入职日期：按当前月份计算
+                cost = monthly_salary * multiplier * current_month
+            elif status_code == 1 and leave_date:
+                # 已离职且有离职日期：计算到离职日期的在岗月数
+                active_months = self._calc_consultant_active_months(
+                    join_date if join_date else datetime(2026, 1, 1),
+                    leave_date,
+                    datetime(2026, 1, 1), today
+                )
+                cost = monthly_salary * multiplier * active_months
+            elif status_code == 1:
+                # 已离职但无离职日期：无法确定何时离职，不计算成本（避免误算）
+                cost = 0
+            else:
+                # 未配置人员：成本为0
+                cost = 0
             
             # ========== 5. 计算核心指标 ==========
-            # 利润只基于已回款
-            actual_profit = actual_collected_90d - cost
-            actual_margin_str = self._calc_margin_str(actual_collected_90d, cost)
+            # 指标1：回款利润率 = (累计回款 - 累计成本) / 累计回款
+            actual_profit = actual_collected_total - cost
+            actual_margin_str = self._calc_margin_str(actual_collected_total, cost)
             
-            # Offer业绩余粮（月数）= Offer金额 / 月成本
+            # 指标2：Offer业绩余粮（月数）= 累计Offer未回款 / 月成本
             monthly_cost = monthly_salary * multiplier
-            offer_reserve_months = offer_pending_90d / monthly_cost if monthly_cost > 0 else 0
+            offer_reserve_months = offer_pending_total / monthly_cost if monthly_cost > 0 else 0
             
-            # Forecast 对未来6个月成本的覆盖
+            # 指标3：Forecast覆盖率 = (累计Offer未回款 + 未来3个月Forecast) / 6个月成本
             future_6m_cost = monthly_cost * 6
-            forecast_coverage = (forecast_90d / future_6m_cost) if future_6m_cost > 0 else 0
+            forecast_coverage = ((offer_pending_total + forecast_90d) / future_6m_cost) if future_6m_cost > 0 else 0
             
             # ========== 6. 风险评级 ==========
-            if actual_profit < 0 and offer_reserve_months < 3:
+            # 只有在职人员做风险评级，已离职/未配置人员不评级
+            if status_code != 2:
+                risk_level = ''  # 已离职或未配置，不显示评级
+            elif actual_profit < 0 and offer_reserve_months < 3:
                 risk_level = '🔴 亏损且余粮不足'
             elif actual_profit < 0:
                 risk_level = '🟡 当前亏损但有余粮'
@@ -1535,18 +1851,20 @@ class AdvancedRecruitmentAnalyzer:
             
             result.append({
                 '顾问': consultant,
-                # 实际回款（利润口径）
-                '已回款': actual_collected_90d,
+                '团队': team,
+                '团队大类': team_category,
+                # 实际回款（利润口径）— 指标1：累计回款
+                '已回款': actual_collected_total,
                 '累计实际回款': actual_collected_total,
-                'Q1成本': cost,
+                '累计成本': cost,
                 '月成本': monthly_cost,
                 '回款利润': actual_profit,
                 '回款利润率': actual_margin_str,
-                # Offer业绩余粮
-                '90天Offer待回': offer_pending_90d,
+                # Offer业绩余粮 — 指标2：累计Offer未回款
+                '90天Offer待回': offer_pending_total,
                 '累计Offer待回': offer_pending_total,
                 'Offer余粮(月)': round(offer_reserve_months, 1),
-                # Forecast Pipeline覆盖
+                # Forecast Pipeline覆盖 — 指标3：Offer+Forecast / 6个月成本
                 '90天Forecast': forecast_90d,
                 '累计Forecast': forecast_total,
                 '未来6个月成本': future_6m_cost,
@@ -1555,9 +1873,15 @@ class AdvancedRecruitmentAnalyzer:
                 # 其他
                 '风险评级': risk_level,
                 '月薪': monthly_salary,
+                '状态': status_label,
+                '状态码': status_code,
             })
         
-        return pd.DataFrame(result).sort_values('回款利润', ascending=False)
+        df = pd.DataFrame(result)
+        # 去除未配置人员（只保留在职和已离职）
+        df = df[df['状态码'] > 0].copy()
+        # 排序：在职(2) > 已离职(1)，同状态按回款利润降序
+        return df.sort_values(['状态码', '回款利润'], ascending=[False, False])
     
     def _calc_margin_str(self, revenue: float, cost: float) -> str:
         """计算利润率字符串，亏损时显示'-'"""
@@ -2372,7 +2696,10 @@ class AdvancedRecruitmentAnalyzer:
         due_30d_items = []
         
         for p in self.positions:
-            if not p.is_successful or p.payment_date:
+            if not p.is_successful:
+                continue
+            # 已回款或部分回款的不算逾期
+            if p.payment_status in ['已回款', '部分回款', '回款完成']:
                 continue
             if not p.offer_date:
                 continue
@@ -2415,7 +2742,7 @@ class AdvancedRecruitmentAnalyzer:
                 'action': '立即电话催收，必要时发律师函',
                 'responsible': '对应顾问 + 财务',
                 'due_date': today.strftime('%Y-%m-%d'),
-                'items': overdue_items[:5]  # 前5笔
+                'items': overdue_items  # 所有逾期项目
             })
         
         # 7天内到期预警
@@ -2430,47 +2757,44 @@ class AdvancedRecruitmentAnalyzer:
                 'action': '提前联系客户确认回款时间',
                 'responsible': '对应顾问',
                 'due_date': (today + timedelta(days=7)).strftime('%Y-%m-%d'),
-                'items': due_7d_items[:5]
+                'items': due_7d_items
             })
         
         return alerts
     
     def get_consultant_alerts(self) -> List[Dict]:
         """
-        获取顾问相关预警
+        获取顾问相关预警（只包含在职顾问）
         """
         alerts = []
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        
-        # 获取在职顾问
-        active_consultants = {
-            name: config for name, config in self.consultant_configs.items()
-            if config.get('is_active', True)
-        }
         
         # 计算90天盈亏预测
         forecast_df = self.get_consultant_profit_forecast(forecast_days=90)
         
         if not forecast_df.empty:
-            # 亏损顾问预警
-            loss_consultants = forecast_df[forecast_df['回款利润'] < -50000]  # 亏损超5万
+            # 只保留在职顾问（状态码=2），排除已离职人员
+            active_df = forecast_df[forecast_df['状态码'] == 2].copy()
+            
+            # 亏损顾问预警（只统计在职顾问）
+            loss_consultants = active_df[active_df['回款利润'] < -50000]  # 亏损超5万
             for _, row in loss_consultants.iterrows():
                 alerts.append({
                     'level': 'warning',
                     'level_text': '🟡 警告',
                     'category': '顾问绩效',
                     'title': f"顾问 {row['顾问']} Q1实际回款亏损",
-                    'message': f"回款利润 {row['回款利润']:,.0f} 元，成本 {row['Q1成本']:,.0f} 元",
+                    'message': f"回款利润 {row['回款利润']:,.0f} 元，成本 {row['累计成本']:,.0f} 元",
                     'action': '评估是否需要PIP或优化',
                     'responsible': '团队负责人',
                     'due_date': (today + timedelta(days=30)).strftime('%Y-%m-%d'),
                 })
             
-            # 零回款顾问预警（实际回款 + Offer待回 + Forecast 都为0）
-            zero_revenue = forecast_df[
-                (forecast_df['已回款'] == 0) & 
-                (forecast_df['90天Offer待回'] == 0) &
-                (forecast_df['90天Forecast'] == 0)
+            # 零回款顾问预警（只统计在职顾问）
+            zero_revenue = active_df[
+                (active_df['已回款'] == 0) & 
+                (active_df['90天Offer待回'] == 0) &
+                (active_df['90天Forecast'] == 0)
             ]
             for _, row in zero_revenue.iterrows():
                 alerts.append({
@@ -2625,9 +2949,9 @@ class AdvancedRecruitmentAnalyzer:
                     'stage': f.stage
                 })
         
-        # 3. 成本计算（统一使用2026年1-3月实际在岗成本）
+        # 3. 成本计算（实时：年初至今实际在岗成本）
         period_start = datetime(2026, 1, 1)
-        period_end = datetime(2026, 3, 31)
+        period_end = today
         period_cost = self._get_consultant_period_cost(consultant_name, period_start, period_end)
         
         if consultant_name in self.consultant_configs:
@@ -2637,30 +2961,54 @@ class AdvancedRecruitmentAnalyzer:
         
         multiplier = self.config.get('salary_multiplier', 3.0)
         monthly_cost = monthly_salary * multiplier
-        cost = period_cost if period_cost > 0 else monthly_cost * 3  # fallback 3个月
+        current_month = max(1, today.month)
+        cost = period_cost if period_cost > 0 else monthly_cost * current_month  # fallback 年初至今
         
-        # 4. 汇总计算（拆分：实际回款 vs Offer待回 vs Forecast）
-        actual_collection = sum(d['expected_amount'] for d in actual_collection_details)
-        offer_pending = sum(d['expected_amount'] for d in offer_pending_details)
+        # 4. 汇总计算（累计口径：全部实际回款 vs 全部Offer待回 vs 90天Forecast）
+        # 全部实际已回款（优先使用 consultant_collections，更准）
+        actual_collection = 0
+        if hasattr(self, 'consultant_collections') and self.consultant_collections:
+            for coll_name, coll_data in self.consultant_collections.items():
+                if match_consultant(coll_name, consultant_name):
+                    actual_collection = coll_data.get('total_received', 0)
+                    break
+        # fallback：从 positions 累加
+        if actual_collection == 0:
+            actual_collection = sum(p.actual_payment for p in self.positions 
+                                   if match_consultant(p.consultant, consultant_name) 
+                                   and p.is_successful 
+                                   and p.payment_status in ['已回款', '部分回款', '回款完成'])
+        # 全部Offer未回款：优先使用 invoiceassignment 的个人分配金额
+        offer_pending = 0
+        if hasattr(self, 'consultant_invoice_assignments') and self.consultant_invoice_assignments:
+            for ia_name, ia_list in self.consultant_invoice_assignments.items():
+                if match_consultant(ia_name, consultant_name):
+                    for ia in ia_list:
+                        # 排除已回款和已作废的发票
+                        if ia['invoice_status'] not in ['Received', '回款完成', 'Reject']:
+                            offer_pending += ia['assigned_amount']
+        
+        # fallback：从 positions 累加（尚未开票的 offer）
+        if offer_pending == 0:
+            offer_pending = sum(p.fee_amount for p in self.positions 
+                               if match_consultant(p.consultant, consultant_name) 
+                               and p.is_successful 
+                               and p.payment_status not in ['已回款', '部分回款', '回款完成']
+                               and p.offer_date and p.fee_amount > 0)
         total_collection = actual_collection + offer_pending
         total_forecast = sum(d['weighted_revenue'] for d in forecast_details)
         total_revenue = total_collection + total_forecast
         
-        # 计算不同场景下的利润
-        # 场景1：仅实际回款
+        # 指标1：回款利润率 = (累计回款 - 累计成本) / 累计回款
         actual_profit = actual_collection - cost
         actual_margin_str = self._calc_margin_str(actual_collection, cost)
         
-        # 场景2：含Offer待回
-        offer_revenue = actual_collection + offer_pending
-        offer_profit = offer_revenue - cost
-        offer_margin_str = self._calc_margin_str(offer_revenue, cost)
-        
-        # 场景3：含Forecast（总预测）
-        # 新指标：Offer余粮、Forecast覆盖
+        # 指标2：Offer业绩余粮 = 累计Offer未回款 / 月成本
         offer_reserve_months = offer_pending / monthly_cost if monthly_cost > 0 else 0
+        
+        # 指标3：Forecast覆盖率 = (累计Offer未回款 + 未来3个月Forecast) / 6个月成本
         future_6m_cost = monthly_cost * 6
-        forecast_coverage = (total_forecast / future_6m_cost) if future_6m_cost > 0 else 0
+        forecast_coverage = ((offer_pending + total_forecast) / future_6m_cost) if future_6m_cost > 0 else 0
         
         return {
             'consultant_name': consultant_name,
@@ -2673,7 +3021,7 @@ class AdvancedRecruitmentAnalyzer:
                 'salary_multiplier': multiplier,
                 'monthly_cost': monthly_cost,
                 'period_cost': cost,
-                'calculation': f"2026年1-3月实际在岗成本 = {cost:,.0f}元 (月薪 {monthly_salary:,.0f} × {multiplier})"
+                'calculation': f"累计实际成本 = {cost:,.0f}元 (月薪 {monthly_salary:,.0f} × {multiplier} × 年初至今{max(1, today.month)}个月)"
             },
             
             # 回款明细（拆分）
@@ -2710,19 +3058,21 @@ class AdvancedRecruitmentAnalyzer:
             
             # 计算过程
             'calculation_process': [
-                f"【利润核算（仅实际回款）】",
-                f"  实际回款: {len(actual_collection_details)}笔，合计 {actual_collection:,.0f}元",
-                f"  Q1成本: {cost:,.0f}元",
+                f"【利润核算（指标1：回款利润率）】",
+                f"  累计实际回款: {actual_collection:,.0f}元",
+                f"  累计成本: {cost:,.0f}元",
                 f"  利润: {actual_collection:,.0f} - {cost:,.0f} = {actual_profit:,.0f}元",
                 f"  利润率: {actual_margin_str}",
                 f"",
-                f"【Offer业绩余粮】",
-                f"  90天Offer待回: {len(offer_pending_details)}笔，合计 {offer_pending:,.0f}元",
+                f"【Offer业绩余粮（指标2：中期缓冲）】",
+                f"  累计Offer未回款: {offer_pending:,.0f}元",
                 f"  月成本: {monthly_cost:,.0f}元",
                 f"  余粮: {offer_pending:,.0f} / {monthly_cost:,.0f} = {offer_reserve_months:.1f}个月",
                 f"",
-                f"【Forecast Pipeline预警（未来6个月）】",
-                f"  90天Forecast: {len(forecast_details)}笔，合计 {total_forecast:,.0f}元",
+                f"【Forecast Pipeline覆盖（指标3：短中长期）】",
+                f"  累计Offer未回款: {offer_pending:,.0f}元",
+                f"  未来3个月Forecast: {len(forecast_details)}笔，合计 {total_forecast:,.0f}元",
+                f"  覆盖分子 (Offer+Forecast): {offer_pending + total_forecast:,.0f}元",
                 f"  未来6个月成本: {future_6m_cost:,.0f}元",
                 f"  覆盖率: {forecast_coverage*100:.0f}%"
             ]
@@ -2747,9 +3097,14 @@ class AdvancedRecruitmentAnalyzer:
             active_consultants = set(p.consultant for p in self.positions if p.consultant)
         active_count = max(1, len(active_consultants))
         
+        name_map = self._build_consultant_name_map()
+        
         data = []
         for p in self.positions:
             end_date = p.payment_date or p.closed_date or datetime.now()
+            aliases = []
+            if p.consultant and p.consultant in name_map:
+                aliases.append(name_map[p.consultant])
             costs = calculate_position_real_costs(
                 position_id=p.position_id,
                 consultant_name=p.consultant,
@@ -2757,7 +3112,8 @@ class AdvancedRecruitmentAnalyzer:
                 start_date=p.created_date or end_date,
                 end_date=end_date,
                 all_records=self.real_cost_records,
-                active_consultant_count=active_count
+                active_consultant_count=active_count,
+                consultant_aliases=aliases
             )
             data.append({
                 '职位ID': p.position_id,
@@ -2788,17 +3144,24 @@ class AdvancedRecruitmentAnalyzer:
         if not active_consultants:
             active_consultants = list(set(p.consultant for p in self.positions if p.consultant))
         
-        consultant_revenue = defaultdict(float)
-        for p in self.positions:
-            if p.consultant:
-                consultant_revenue[p.consultant] += p.actual_payment
+        # 复用 get_consultant_profit_forecast 中的累计实际回款逻辑（含 payment_status 过滤和模糊匹配）
+        profit_forecast_df = self.get_consultant_profit_forecast(forecast_days=3650)
+        revenue_map = {}
+        if not profit_forecast_df.empty and '累计实际回款' in profit_forecast_df.columns:
+            revenue_map = dict(zip(profit_forecast_df['顾问'], profit_forecast_df['累计实际回款']))
+        
+        name_map = self._build_consultant_name_map()
         
         result = []
         for consultant in active_consultants:
-            revenue = consultant_revenue.get(consultant, 0)
+            revenue = revenue_map.get(consultant, 0)
+            aliases = []
+            if consultant in name_map:
+                aliases.append(name_map[consultant])
             costs = get_consultant_real_costs(
                 consultant_name=consultant,
                 all_records=self.real_cost_records,
+                aliases=aliases,
             )
             total_cost = costs['total']
             profit = revenue - total_cost
