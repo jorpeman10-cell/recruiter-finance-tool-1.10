@@ -38,6 +38,7 @@ class GllueDBClient:
         self.config = config
         self._engine = None
         self._ssh_client = None
+        self._ssh_connected = False
     
     def _get_engine(self):
         """获取 SQLAlchemy engine（懒加载）"""
@@ -61,6 +62,22 @@ class GllueDBClient:
                 raise ValueError(f"不支持的数据库类型: {self.config.db_type}")
         return self._engine
     
+    def _get_ssh_client(self):
+        """获取或创建 SSH 连接（复用连接）"""
+        if self._ssh_client is None or not self._ssh_connected:
+            import paramiko
+            self._ssh_client = paramiko.SSHClient()
+            self._ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            self._ssh_client.connect(
+                self.config.ssh_host,
+                port=self.config.ssh_port,
+                username=self.config.ssh_user,
+                password=self.config.ssh_password,
+                timeout=30
+            )
+            self._ssh_connected = True
+        return self._ssh_client
+    
     def query(self, sql: str, params: Optional[Dict] = None) -> pd.DataFrame:
         """执行 SQL 查询并返回 DataFrame"""
         if self.config.use_ssh:
@@ -69,21 +86,12 @@ class GllueDBClient:
         return pd.read_sql(sql, engine, params=params)
     
     def _query_via_ssh(self, sql: str) -> pd.DataFrame:
-        """通过 SSH 执行 SQL 查询（用于远程连接）"""
-        import paramiko
+        """通过 SSH 执行 SQL 查询（复用 SSH 连接）"""
+        import uuid
         
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            self.config.ssh_host,
-            port=self.config.ssh_port,
-            username=self.config.ssh_user,
-            password=self.config.ssh_password,
-            timeout=30
-        )
+        client = self._get_ssh_client()
         
         # Write SQL to temp file to avoid quote escaping issues
-        import uuid
         tmp_file = f"/tmp/gllue_query_{uuid.uuid4().hex}.sql"
         sftp = client.open_sftp()
         with sftp.file(tmp_file, "w") as f:
@@ -104,7 +112,6 @@ class GllueDBClient:
         
         # Clean up temp file
         client.exec_command(f"rm -f {tmp_file}")
-        client.close()
         
         if err and "Warning" not in err and "warning" not in err:
             raise RuntimeError(f"MySQL error: {err}")
@@ -115,6 +122,16 @@ class GllueDBClient:
         
         df = pd.read_csv(StringIO(out), sep='\t', engine='python', on_bad_lines='skip')
         return df
+    
+    def close(self):
+        """关闭连接"""
+        if self._ssh_client and self._ssh_connected:
+            self._ssh_client.close()
+            self._ssh_connected = False
+            self._ssh_client = None
+        if self._engine:
+            self._engine.dispose()
+            self._engine = None
     
     def test_connection(self) -> bool:
         """测试数据库连接"""
