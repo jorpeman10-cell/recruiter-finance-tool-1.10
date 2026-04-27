@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 猎头公司财务分析工具 - 完整版
-版本: v1.10
-发布日期: 2026-04-26
+版本: v1.11
+发布日期: 2026-04-07
+新增: 数据预加载机制，减少标签页切换等待时间
 """
 
 import streamlit as st
@@ -24,7 +25,7 @@ import auto_import
 import auth_guard
 
 st.set_page_config(
-    page_title="T-STAR 猎头财务分析 v1.10",
+    page_title="T-STAR 猎头财务分析 v1.11",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -269,7 +270,7 @@ def format_percent(value):
 def render_sidebar():
     """渲染侧边栏"""
     st.sidebar.markdown("<div style='font-size: 1.5rem; font-weight: bold; color: #1E3A8A;'>📊 数据配置</div>", unsafe_allow_html=True)
-    st.sidebar.markdown("<div style='font-size: 0.75rem; color: #718096;'>v1.10</div>", unsafe_allow_html=True)
+    st.sidebar.markdown("<div style='font-size: 0.75rem; color: #718096;'>v1.11</div>", unsafe_allow_html=True)
     
     analyzer = st.session_state.analyzer
     
@@ -541,6 +542,16 @@ def render_sidebar():
                         )
                         st.session_state.db_connection_status = 'connected'
                         st.session_state.db_connection_error = ''
+                        
+                        # 同步完成后，刷新预加载数据
+                        try:
+                            from data_preloader import DataPreloader
+                            preloader = DataPreloader()
+                            preloader.reset()
+                            preloader.start_loading(db_client)
+                        except Exception:
+                            pass
+                        
                         st.sidebar.success(f"✅ 同步完成")
                         st.sidebar.caption(f"Offer:{stats['offers_fetched']} | Invoice:{stats['invoices_fetched']} | Forecast:{stats['forecasts_fetched']}")
                         st.rerun()
@@ -697,6 +708,16 @@ def render_sidebar():
             st.sidebar.write(f"- 财务状况: {real_summary['record_count']}条")
     else:
         st.sidebar.info("👆 请先上传数据文件")
+    
+    st.sidebar.markdown("---")
+    # 数据预加载状态
+    try:
+        from data_preloader import render_preload_status
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### ⚡ 数据状态")
+        render_preload_status()
+    except Exception:
+        pass
     
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 👤 用户")
@@ -2213,6 +2234,23 @@ def main():
         st.session_state.analyzer = AdvancedRecruitmentAnalyzer()
         load_default_data(st.session_state.analyzer)
     
+    # ========== 数据预加载（后台线程）==========
+    # 如果数据库已配置，启动后台预加载，减少后续标签页切换等待时间
+    try:
+        import db_config_manager
+        from data_preloader import init_preloader_in_session
+        
+        if db_config_manager.has_config():
+            # 只在首次初始化时创建预加载器
+            if 'data_preloader' not in st.session_state:
+                from gllue_db_client import GllueDBClient
+                db_cfg = db_config_manager.get_gllue_db_config()
+                db_client = GllueDBClient(db_cfg)
+                init_preloader_in_session(db_client)
+    except Exception as e:
+        # 预加载失败不影响主流程
+        pass
+    
     # 渲染用户横幅
     render_user_banner()
     
@@ -2261,10 +2299,21 @@ def render_mapping_analysis():
         from gllue_db_client import GllueDBClient
         import db_config_manager
         from mapping_analyzer import MappingAnalyzer
+        from data_preloader import get_preloaded_data, is_data_ready
         
         if db_config_manager.has_config():
             db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
             analyzer = MappingAnalyzer(db_client)
+            
+            # 优先使用预加载的 Mapping 数据
+            if is_data_ready():
+                preloaded_mappings = get_preloaded_data('mappings')
+                if preloaded_mappings is not None and not preloaded_mappings.empty:
+                    # 预加载的 mappings 数据需要解析 content 字段
+                    # 直接调用 load_from_db() 会重新查询，这里我们需要复用预加载的原始数据
+                    # 但 mapping_analyzer 需要解析 JSON content，所以还是需要执行 load_from_db
+                    # 不过预加载的数据已经缓存了，实际查询会走缓存，不会重复SSH
+                    pass
             analyzer.load_from_db()
         else:
             st.warning("请先配置数据库连接")
@@ -2412,22 +2461,39 @@ def render_consultant_full_analysis():
     st.markdown('<div class="main-header">👤 顾问全景分析</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-header">盈亏、产能、行为与改进建议一站式查看</div>', unsafe_allow_html=True)
     
-    # 使用统一数据加载器
+    # 优先使用预加载的数据
     try:
+        from data_preloader import get_preloaded_data, is_data_ready
         from unified_data_loader import UnifiedDataLoader
         from consultant_gap_analyzer import ConsultantGapAnalyzer
         from gllue_db_client import GllueDBClient
         import db_config_manager
         
         if db_config_manager.has_config():
-            db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
-            loader = UnifiedDataLoader(db_client)
-            loader.load_all()
+            # 检查是否有预加载的数据
+            if is_data_ready():
+                # 使用预加载的数据，避免重复查询
+                users_df = get_preloaded_data('users') or pd.DataFrame()
+                # 创建 loader 但不执行 load_all()，直接注入预加载的数据
+                db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
+                loader = UnifiedDataLoader(db_client)
+                # 手动注入预加载的数据到 loader
+                for key in ['users', 'teams', 'joborders', 'cvsents', 'interviews', 
+                           'offers', 'invoices', 'forecasts', 'mappings']:
+                    data = get_preloaded_data(key)
+                    if data is not None:
+                        loader._data[key] = data
+                loader._loaded = True
+            else:
+                # 回退：直接加载
+                db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
+                loader = UnifiedDataLoader(db_client)
+                loader.load_all()
+                users_df = loader.get('users')
             
             # 加载顾问数据库信息（用于准确的状态和成本计算）
-            users_df = loader.get('users')
-            if not users_df.empty:
-                st.session_state.analyzer.load_consultant_db_info(users_df)
+            if not loader.get('users').empty:
+                st.session_state.analyzer.load_consultant_db_info(loader.get('users'))
             
             # 产能差距分析
             gap_analyzer = ConsultantGapAnalyzer(loader)

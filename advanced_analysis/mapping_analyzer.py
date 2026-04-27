@@ -94,10 +94,15 @@ class MappingAnalyzer:
         self.db_client = db_client
         self._nodes_df = None
         self._org_stats = None
+        self._loaded = False  # 标记是否已加载
     
     def load_from_db(self):
         """从数据库加载 Mapping 数据"""
         if self.db_client is None:
+            return
+        
+        # 如果已经加载过，跳过
+        if self._loaded:
             return
         
         mappings = self.db_client.query("""
@@ -170,6 +175,7 @@ class MappingAnalyzer:
         
         self._nodes_df = pd.DataFrame(all_nodes)
         self._org_stats = pd.DataFrame(org_records)
+        self._loaded = True
     
     def get_summary(self):
         """获取整体统计摘要"""
