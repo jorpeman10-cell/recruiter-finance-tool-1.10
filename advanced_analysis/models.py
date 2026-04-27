@@ -2698,12 +2698,60 @@ class AdvancedRecruitmentAnalyzer:
         
         return alerts
     
+    def _get_collection_alerts_from_invoices(self, today: datetime) -> List[Dict]:
+        """
+        基于真实发票数据生成回款预警（更准确）
+        """
+        alerts = []
+        
+        if not hasattr(self, 'overdue_invoices_detail') or self.overdue_invoices_detail.empty:
+            return alerts
+        
+        df = self.overdue_invoices_detail
+        
+        # 已逾期
+        overdue_items = []
+        for _, row in df.iterrows():
+            overdue_items.append({
+                'position_id': row.get('joborder_id', ''),
+                'client': row.get('client_name', ''),
+                'position': row.get('position_name', ''),
+                'consultant': row.get('consultant', ''),
+                'amount': row.get('pending_amount', 0),
+                'est_date': row.get('due_date', ''),
+                'days': -(row.get('overdue_days', 0)),
+            })
+        
+        if overdue_items:
+            total_overdue = sum(i['amount'] for i in overdue_items)
+            max_overdue_days = max(abs(i['days']) for i in overdue_items)
+            alerts.append({
+                'level': 'danger',
+                'level_text': '🔴 紧急',
+                'category': '回款催收',
+                'title': f'已逾期回款 {len(overdue_items)} 笔',
+                'message': f"合计 {total_overdue:,.0f} 元，最长逾期 {max_overdue_days} 天",
+                'action': '立即电话催收，必要时发律师函',
+                'responsible': '对应顾问 + 财务',
+                'due_date': today.strftime('%Y-%m-%d'),
+                'items': overdue_items
+            })
+        
+        return alerts
+    
     def get_collection_alerts(self) -> List[Dict]:
         """
         获取回款相关预警
+        优先使用真实发票数据（invoice表），如果没有则回退到offer日期推算
         """
         alerts = []
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # 优先使用真实发票逾期数据（如果已同步）
+        if hasattr(self, 'overdue_invoices_detail') and not self.overdue_invoices_detail.empty:
+            return self._get_collection_alerts_from_invoices(today)
+        
+        # 回退：使用offer日期推算（可能不准确）
         avg_cycle = self.get_historical_payment_cycle()
         offer_to_payment_days = self.AVG_OFFER_TO_ONBOARD_DAYS + avg_cycle
         
