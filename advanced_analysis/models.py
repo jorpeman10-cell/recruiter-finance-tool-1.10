@@ -853,8 +853,9 @@ class AdvancedRecruitmentAnalyzer:
             for name, config in self.consultant_configs.items():
                 # 优先从数据库获取状态（更准确）
                 db_status = self._get_db_status(name)
-                if db_status:
-                    status_code, status_label, join_date, leave_date = db_status
+                if db_status and db_status[0] is not None:
+                    # db_status = (status_code, status_label, join_date, leave_date)
+                    status_code = db_status[0]
                     # 只计算在职顾问（状态码=2）
                     if status_code == 2:
                         total += config.get('monthly_salary', 15000) * config.get('salary_multiplier', 3.0)
