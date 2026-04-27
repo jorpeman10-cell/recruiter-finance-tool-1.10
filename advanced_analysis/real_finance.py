@@ -127,7 +127,7 @@ def load_real_salary_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
         
         # 顾问/部门/姓名
         consultant = None
-        for col in ['consultant', '顾问', '顾问姓名', '姓名', 'name', '用户', '员工', '部门']:
+        for col in ['consultant', '顾问', '顾问姓名', '姓名', 'name', '用户', '员工', '部门', '备注']:
             if col in row and pd.notna(row[col]):
                 consultant = str(row[col]).strip()
                 break
@@ -216,7 +216,7 @@ def load_real_reimburse_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]
             date_val = datetime.now()
         
         consultant = None
-        for col in ['consultant', '顾问姓名', '顾问', '姓名', 'name', '用户', '员工', '部门']:
+        for col in ['consultant', '顾问姓名', '顾问', '姓名', 'name', '用户', '员工', '部门', '部门/顾问']:
             if col in row and pd.notna(row[col]):
                 consultant = str(row[col]).strip()
                 break
@@ -299,7 +299,7 @@ def load_real_fixed_from_dataframe(df: pd.DataFrame) -> List[RealCostRecord]:
             date_val = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         consultant = None
-        for col in ['consultant', '顾问姓名', '顾问', '姓名', 'name', '用户', '员工', '部门']:
+        for col in ['consultant', '顾问姓名', '顾问', '姓名', 'name', '用户', '员工', '部门', '部门/顾问']:
             if col in row and pd.notna(row[col]):
                 consultant = str(row[col]).strip()
                 break
@@ -404,7 +404,8 @@ def calculate_position_real_costs(
     start_date: datetime,
     end_date: datetime,
     all_records: List[RealCostRecord],
-    active_consultant_count: int = 1
+    active_consultant_count: int = 1,
+    consultant_aliases: List[str] = None
 ) -> Dict[str, float]:
     """
     计算单个职位的真实成本分摊
@@ -458,12 +459,12 @@ def calculate_position_real_costs(
             continue
         
         if r.category == 'salary':
-            if r.consultant and r.consultant == consultant_name:
+            if r.consultant and (r.consultant == consultant_name or (consultant_aliases and r.consultant in consultant_aliases)):
                 ratio = _overlap_days(start_date, end_date, r.date)
                 salary_total += r.amount * ratio
         
         elif r.category == 'reimburse':
-            if r.consultant and r.consultant == consultant_name:
+            if r.consultant and (r.consultant == consultant_name or (consultant_aliases and r.consultant in consultant_aliases)):
                 ratio = _overlap_days(start_date, end_date, r.date)
                 reimburse_total += r.amount * ratio
         
@@ -545,6 +546,7 @@ def get_consultant_real_costs(
     all_records: List[RealCostRecord],
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
+    aliases: List[str] = None,
 ) -> Dict[str, float]:
     """
     计算某个顾问在指定区间内的真实成本汇总
@@ -557,8 +559,12 @@ def get_consultant_real_costs(
     salary = 0.0
     reimburse = 0.0
     
+    names_to_match = {consultant_name}
+    if aliases:
+        names_to_match.update(aliases)
+    
     for r in all_records:
-        if r.consultant != consultant_name:
+        if r.consultant not in names_to_match:
             continue
         ratio = _overlap_days(start_date, end_date, r.date)
         if r.category == 'salary':

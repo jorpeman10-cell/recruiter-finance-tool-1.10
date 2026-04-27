@@ -242,12 +242,25 @@ def render_sidebar():
                 help="你的谷露系统域名，不需要 https:// 前缀"
             )
             gllue_api_key = st.text_input(
-                "API 密钥",
+                "API 密钥（可选）",
                 value=st.session_state.get('gllue_api_key', ''),
                 type="password",
                 placeholder="从谷露系统获取的 API Key",
-                help="请联系谷露客服或管理员获取 API 密钥"
+                help="如果有 API Key 则优先使用；没有的话请填写下方账号密码"
             )
+            gllue_username = st.text_input(
+                "登录账号（API Key 为空时必填）",
+                value=st.session_state.get('gllue_username', ''),
+                placeholder="如: steven.huang@tstarmc.com"
+            )
+            gllue_password = st.text_input(
+                "登录密码（API Key 为空时必填）",
+                value=st.session_state.get('gllue_password', ''),
+                type="password",
+                placeholder="网页登录密码"
+            )
+            has_api_key = bool(gllue_api_key)
+            has_creds = bool(gllue_username and gllue_password)
             
             # 同步日期范围
             col1, col2 = st.columns(2)
@@ -268,25 +281,25 @@ def render_sidebar():
             if st.button("💾 保存配置", use_container_width=True):
                 st.session_state.gllue_base_url = gllue_base_url
                 st.session_state.gllue_api_key = gllue_api_key
+                st.session_state.gllue_username = gllue_username
+                st.session_state.gllue_password = gllue_password
                 st.success("✅ 配置已保存")
             
             # 测试连接
             if st.button("🔌 测试连接", use_container_width=True):
-                if not gllue_base_url or not gllue_api_key:
-                    st.error("❌ 请先填写域名和 API 密钥")
+                if not gllue_base_url or not (has_api_key or has_creds):
+                    st.error("❌ 请先填写域名，以及 API 密钥 或 账号密码 其中一组")
                 else:
                     with st.spinner("正在测试连接..."):
                         try:
-                            # 导入 Gllue 客户端
                             from gllue_client import GllueConfig, GllueAPIClient
-                            
                             config = GllueConfig(
                                 base_url=gllue_base_url,
-                                api_key=gllue_api_key
+                                api_key=gllue_api_key or None,
+                                username=gllue_username or None,
+                                password=gllue_password or None,
                             )
                             client = GllueAPIClient(config)
-                            
-                            # 尝试获取少量数据测试连接
                             test_data = client.get_users()
                             st.success(f"✅ 连接成功！获取到 {len(test_data)} 个用户")
                         except Exception as e:
@@ -294,16 +307,17 @@ def render_sidebar():
             
             # 执行同步
             if st.button("🚀 同步数据", type="primary", use_container_width=True):
-                if not gllue_base_url or not gllue_api_key:
-                    st.error("❌ 请先填写域名和 API 密钥")
+                if not gllue_base_url or not (has_api_key or has_creds):
+                    st.error("❌ 请先填写域名，以及 API 密钥 或 账号密码 其中一组")
                 else:
                     with st.spinner("正在从 Gllue 同步数据..."):
                         try:
                             from gllue_client import GllueConfig, GllueAPIClient
-                            
                             config = GllueConfig(
                                 base_url=gllue_base_url,
-                                api_key=gllue_api_key
+                                api_key=gllue_api_key or None,
+                                username=gllue_username or None,
+                                password=gllue_password or None,
                             )
                             client = GllueAPIClient(config)
                             

@@ -17,25 +17,30 @@ class AlertConfig:
     """预警配置管理"""
     
     DEFAULT_CONFIG = {
+        # 主通知渠道
+        'notify_channel': 'wechat',  # wechat | dingtalk | feishu | email | none
+        'webhook_url': '',  # 企业微信/钉钉/飞书机器人 webhook 地址
+        
+        # 邮件配置（作为 fallback）
         'email_enabled': False,
-        'smtp_server': 'smtp.exmail.qq.com',  # 企业微信邮箱示例
+        'smtp_server': 'smtp.exmail.qq.com',
         'smtp_port': 465,
         'smtp_username': '',
-        'smtp_password': '',  # 注意：实际使用时需要加密存储
+        'smtp_password': '',
         'sender_email': '',
-        'recipients': [],  # 接收人列表
+        'recipients': [],
         
         # 预警规则阈值
         'alert_rules': {
-            'cashflow_danger': 0,  # 现金余额低于此值触发紧急预警
-            'cashflow_warning_months': 2,  # 现金不足N个月成本触发警告
-            'collection_overdue_days': 1,  # 逾期N天触发催收预警
-            'collection_due_days': 7,  # N天内到期触发提醒
-            'consultant_loss_threshold': -50000,  # 顾问亏损阈值
+            'cashflow_danger': 0,
+            'cashflow_warning_months': 2,
+            'collection_overdue_days': 1,
+            'collection_due_days': 7,
+            'consultant_loss_threshold': -50000,
         },
         
         # 发送频率
-        'send_frequency': 'daily',  # daily, weekly
+        'send_frequency': 'daily',
         'last_send_time': None,
     }
     
@@ -118,42 +123,114 @@ class AlertConfig:
 
 
 class AlertSender:
-    """预警邮件发送器"""
+    """预警通知发送器（支持企业微信Webhook、钉钉、飞书、邮件）"""
     
     def __init__(self, config: AlertConfig):
         self.config = config
     
     def test_connection(self) -> tuple:
-        """
-        测试SMTP连接
-        
-        Returns:
-            (success: bool, message: str)
-        """
+        """测试当前配置的通知渠道"""
+        channel = self.config.config.get('notify_channel', 'none')
+        if channel == 'none':
+            return False, "当前通知渠道为『不发送』，请选择通知方式"
+        if channel == 'wechat':
+            return self._test_wechat()
+        if channel == 'email':
+            return self._test_email()
+        return False, f"暂不支持的测试渠道: {channel}"
+    
+    def _test_wechat(self) -> tuple:
+        url = self.config.config.get('webhook_url', '')
+        if not url:
+            return False, "企业微信Webhook地址为空"
+        return self._send_wechat_webhook({
+            "msgtype": "text",
+            "text": {"content": "【测试】猎头财务分析系统连接成功\n如您收到此消息，说明企业微信机器人配置正确。"}
+        })
+    
+    def _test_email(self) -> tuple:
         smtp_config = self.config.get_smtp_config()
-        
         if not all([smtp_config['server'], smtp_config['username'], smtp_config['password']]):
             return False, "SMTP配置不完整，请检查服务器地址、用户名和密码"
-        
         try:
             server = smtplib.SMTP_SSL(smtp_config['server'], smtp_config['port'])
             server.login(smtp_config['username'], smtp_config['password'])
             server.quit()
-            return True, "连接成功"
+            return True, "SMTP连接成功"
         except Exception as e:
-            return False, f"连接失败: {str(e)}"
+            return False, f"SMTP连接失败: {str(e)}"
+    
+    def send_alerts(self, alerts: List[Dict], subject: str = "猎头财务预警通知") -> tuple:
+        """统一发送入口，根据配置自动路由"""
+        channel = self.config.config.get('notify_channel', 'none')
+        if channel == 'none':
+            return False, "通知功能未启用"
+        if channel == 'wechat':
+            return self.send_wechat_alert(alerts)
+        if channel == 'email':
+            return self.send_alert_email(alerts, subject)
+        return False, f"不支持的渠道: {channel}"
+    
+    def send_wechat_alert(self, alerts: List[Dict]) -> tuple:
+        """通过企业微信机器人发送预警"""
+        if not alerts:
+            return False, "没有预警内容"
+        
+        danger = [a for a in alerts if a['level'] == 'danger']
+        warning = [a for a in alerts if a['level'] == 'warning']
+        info = [a for a in alerts if a['level'] == 'info']
+        
+        lines = ["🔔 猎头财务预警通知", f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ""]
+        lines.append(f"汇总: 🔴紧急 {len(danger)} 条 | 🟡警告 {len(warning)} 条 | 🔵提示 {len(info)} 条")
+        lines.append("")
+        
+        for a in danger + warning + info:
+            lines.append(f"{'🔴' if a['level']=='danger' else '🟡' if a['level']=='warning' else '🔵'} {a['title']}")
+            lines.append(f"   {a['message']}")
+            lines.append(f"   💡 {a['action']} | 👤 {a['responsible']}")
+            lines.append("")
+        
+        content = "\n".join(lines)
+        result, msg = self._send_wechat_webhook({
+            "msgtype": "text",
+            "text": {"content": content}
+        })
+        
+        # Webhook 失败且启用了邮件 fallback，尝试邮件
+        if not result and self.config.config.get('email_enabled', False):
+            mail_result, mail_msg = self.send_alert_email(alerts, subject)
+            if mail_result:
+                return True, f"Webhook发送失败({msg})，已自动切换到邮件发送成功"
+        
+        return result, msg
+    
+    def _send_wechat_webhook(self, payload: Dict) -> tuple:
+        """底层发送企业微信Webhook请求"""
+        import json
+        import urllib.request
+        import urllib.error
+        
+        url = self.config.config.get('webhook_url', '')
+        if not url:
+            return False, "企业微信Webhook地址未配置"
+        
+        try:
+            data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+            req = urllib.request.Request(url, data=data, headers={'Content-Type': 'application/json'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+                if result.get('errcode') == 0:
+                    self.config.config['last_send_time'] = datetime.now().isoformat()
+                    self.config.save_config()
+                    return True, "企业微信发送成功"
+                return False, f"企业微信返回错误: {result.get('errmsg', '未知错误')}"
+        except urllib.error.HTTPError as e:
+            return False, f"HTTP错误 {e.code}: {e.reason}"
+        except Exception as e:
+            return False, f"发送异常: {str(e)}"
     
     def send_alert_email(self, alerts: List[Dict], subject: str = "猎头财务预警通知") -> tuple:
-        """
-        发送预警邮件
-        
-        Args:
-            alerts: 预警列表
-            subject: 邮件主题
-        
-        Returns:
-            (success: bool, message: str)
-        """
+        """发送预警邮件（作为fallback保留）"""
         if not self.config.config.get('email_enabled', False):
             return False, "邮件功能未启用"
         
@@ -164,17 +241,13 @@ class AlertSender:
         smtp_config = self.config.get_smtp_config()
         
         try:
-            # 构建邮件内容
             html_content = self._build_alert_html(alerts)
-            
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
             msg['From'] = smtp_config['sender'] or smtp_config['username']
             msg['To'] = ', '.join(recipients)
-            
             msg.attach(MIMEText(html_content, 'html', 'utf-8'))
             
-            # 发送邮件
             server = smtplib.SMTP_SSL(smtp_config['server'], smtp_config['port'])
             server.login(smtp_config['username'], smtp_config['password'])
             server.sendmail(
@@ -184,7 +257,6 @@ class AlertSender:
             )
             server.quit()
             
-            # 更新发送时间
             self.config.config['last_send_time'] = datetime.now().isoformat()
             self.config.save_config()
             
@@ -195,8 +267,6 @@ class AlertSender:
     
     def _build_alert_html(self, alerts: List[Dict]) -> str:
         """构建预警邮件HTML内容"""
-        
-        # 按级别分组
         danger_alerts = [a for a in alerts if a['level'] == 'danger']
         warning_alerts = [a for a in alerts if a['level'] == 'warning']
         info_alerts = [a for a in alerts if a['level'] == 'info']
@@ -230,21 +300,18 @@ class AlertSender:
             </div>
         """
         
-        # 紧急预警
         if danger_alerts:
             html += '<div class="alert-section"><h2>🔴 紧急预警</h2>'
             for alert in danger_alerts:
                 html += self._build_alert_card(alert, 'danger')
             html += '</div>'
         
-        # 警告预警
         if warning_alerts:
             html += '<div class="alert-section"><h2>🟡 警告</h2>'
             for alert in warning_alerts:
                 html += self._build_alert_card(alert, 'warning')
             html += '</div>'
         
-        # 提示信息
         if info_alerts:
             html += '<div class="alert-section"><h2>🔵 提示</h2>'
             for alert in info_alerts:
