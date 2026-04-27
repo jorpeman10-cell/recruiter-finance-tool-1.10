@@ -957,8 +957,15 @@ class AdvancedRecruitmentAnalyzer:
             
             # 获取原始配置
             cfg = self.consultant_configs.get(original_name, config)
-            join_date = cfg.get('join_date')
-            leave_date = cfg.get('leave_date')
+            
+            # 优先从数据库获取入职/离职日期（更准确）
+            db_status = self._get_db_status(original_name)
+            if db_status and db_status[0] is not None:
+                join_date = db_status[2]  # db_join_date
+                leave_date = db_status[3]  # db_leave_date
+            else:
+                join_date = cfg.get('join_date')
+                leave_date = cfg.get('leave_date')
             
             # 查找该顾问在周期内的真实工资记录（匹配英文名或中文名）
             chinese_name = name_map.get(original_name)
