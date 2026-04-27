@@ -847,13 +847,21 @@ class AdvancedRecruitmentAnalyzer:
             avg_monthly = total_real / count if count > 0 else 0
             return avg_monthly if avg_monthly > 0 else 1
         
-        # 原有假设模式逻辑
+        # 原有假设模式逻辑 - 优先使用数据库状态判断在职
         if self.consultant_configs:
             total = 0
             for name, config in self.consultant_configs.items():
-                # 默认为在职（True），除非明确设置为False
-                if config.get('is_active', True):
-                    total += config.get('monthly_salary', 15000) * config.get('salary_multiplier', 3.0)
+                # 优先从数据库获取状态（更准确）
+                db_status = self._get_db_status(name)
+                if db_status:
+                    status_code, status_label, join_date, leave_date = db_status
+                    # 只计算在职顾问（状态码=2）
+                    if status_code == 2:
+                        total += config.get('monthly_salary', 15000) * config.get('salary_multiplier', 3.0)
+                else:
+                    # 回退到Excel配置
+                    if config.get('is_active', True):
+                        total += config.get('monthly_salary', 15000) * config.get('salary_multiplier', 3.0)
             return total if total > 0 else 1  # 避免返回0
         
         # 如果没有顾问配置，从职位数据中推断顾问人数
