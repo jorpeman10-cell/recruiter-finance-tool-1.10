@@ -1,5 +1,6 @@
 """
 OKR分析和绩效工资计算页面
+支持：规则配置、自动计算、人工校对
 """
 
 import streamlit as st
@@ -10,7 +11,10 @@ import sys
 import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from okr_analyzer import OKRDataLoader, OKRAnalyzer
+from okr_analyzer import (
+    OKRConfigManager, OKRCalculator, OKRResultStore,
+    ConsultantOKRConfig, OKRRule, OKRResult
+)
 
 
 def format_currency(value):
@@ -24,202 +28,126 @@ def format_currency(value):
 def render_okr_page():
     """渲染OKR分析页面"""
     st.markdown('<div class="main-header">🎯 OKR分析与绩效工资</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-header">OKR目标达成情况与绩效工资核算</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sub-header">自动计算OKR奖金，支持人工校对</div>', unsafe_allow_html=True)
     
-    # ========== 数据上传 ==========
-    st.markdown("### 📁 上传OKR数据")
+    # 初始化配置管理器
+    config_manager = OKRConfigManager()
+    result_store = OKRResultStore()
     
-    col1, col2 = st.columns(2)
-    with col1:
-        okr_file = st.file_uploader("OKR考核表 (Excel)", type=['xlsx', 'xls'], key='okr_file')
-    with col2:
-        year = st.selectbox("年份", [2025, 2026], index=1)
-        month = st.selectbox("月份", list(range(1, 13)), index=2)
+    # 侧边栏：月份选择
+    with st.sidebar:
+        st.markdown("### 📅 考核月份")
+        year = st.selectbox("年份", [2025, 2026], index=1, key="okr_year")
+        month = st.selectbox("月份", list(range(1, 13)), index=2, key="okr_month")
     
-    # 加载OKR数据
-    okr_loader = None
+    # 主内容区标签页
+    tab1, tab2, tab3, tab4 = st.tabs([
+        "📋 规则配置",
+        "🤖 自动计算",
+        "✏️ 人工校对",
+        "📊 历史记录",
+    ])
     
-    if okr_file:
-        try:
-            # 保存上传的文件到临时位置
-            temp_path = f"/tmp/okr_upload_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
-            with open(temp_path, "wb") as f:
-                f.write(okr_file.getvalue())
-            
-            okr_loader = OKRDataLoader(temp_path)
-            okr_loader.parse()
-            
-            # 存储到session_state
-            st.session_state.okr_loader = okr_loader
-            st.session_state.okr_year = year
-            st.session_state.okr_month = month
-            
-            st.success(f"✅ 已加载 {len(okr_loader.consultant_okrs)} 位顾问的OKR数据")
-        except Exception as e:
-            st.error(f"加载OKR数据失败: {e}")
-            return
-    elif 'okr_loader' in st.session_state:
-        okr_loader = st.session_state.okr_loader
-        year = st.session_state.get('okr_year', year)
-        month = st.session_state.get('okr_month', month)
-    else:
-        st.info("📊 请上传OKR考核表Excel文件")
-        return
-    
-    # ========== 标签页 ==========
-    tab1, tab2, tab3 = st.tabs(["📊 OKR汇总", "📋 指标明细", "🔍 系统数据对比"])
-    
-    # ---------- 汇总页 ----------
     with tab1:
-        render_okr_summary(okr_loader)
+        render_rule_config(config_manager)
     
-    # ---------- 明细页 ----------
     with tab2:
-        render_okr_detail(okr_loader)
+        render_auto_calculation(config_manager, result_store, year, month)
     
-    # ---------- 系统对比页 ----------
     with tab3:
-        render_okr_system_comparison(okr_loader, year, month)
-
-
-def render_okr_summary(okr_loader: OKRDataLoader):
-    """渲染OKR汇总"""
-    summary = okr_loader.get_summary_df()
+        render_manual_review(result_store, year, month)
     
-    if summary.empty:
-        st.warning("暂无OKR数据")
+    with tab4:
+        render_history(result_store)
+
+
+def render_rule_config(config_manager: OKRConfigManager):
+    """渲染规则配置页面"""
+    st.markdown("### 📋 OKR规则配置")
+    st.caption("上传Excel模板或手动配置每个顾问的OKR考核规则")
+    
+    # 上传Excel模板
+    uploaded_file = st.file_uploader("上传OKR模板 (Excel)", type=['xlsx', 'xls'], key='okr_template')
+    
+    if uploaded_file:
+        if st.button("🔄 解析并保存规则", type="primary"):
+            with st.spinner("解析中..."):
+                try:
+                    # 保存临时文件
+                    temp_path = f"/tmp/okr_template_{datetime.now().strftime('%Y%m%d%H%M%S')}.xlsx"
+                    with open(temp_path, "wb") as f:
+                        f.write(uploaded_file.getvalue())
+                    
+                    # 解析规则
+                    configs = config_manager.parse_from_excel(temp_path)
+                    
+                    st.success(f"✅ 成功解析并保存 {len(configs)} 位顾问的OKR规则")
+                    
+                    # 显示解析结果
+                    for config in configs:
+                        with st.expander(f"{config.consultant_name} ({config.chinese_name}) - {len(config.rules)}个指标"):
+                            rules_data = []
+                            for rule in config.rules:
+                                rules_data.append({
+                                    '指标类型': rule.indicator_type,
+                                    '指标名称': rule.indicator_name,
+                                    '目标值': rule.target_value,
+                                    '权重': rule.weight,
+                                    '奖金池': rule.bonus_pool,
+                                    '周期': rule.period,
+                                    '自动计算': '✅' if rule.is_auto_calculable else '❌',
+                                })
+                            st.dataframe(pd.DataFrame(rules_data), hide_index=True, use_container_width=True)
+                    
+                except Exception as e:
+                    st.error(f"解析失败: {e}")
+    
+    # 显示已配置规则
+    st.markdown("---")
+    st.markdown("### 📁 已配置的规则")
+    
+    configs = config_manager.load_all_configs()
+    if not configs:
+        st.info("暂无配置，请上传Excel模板")
         return
     
-    # KPI 卡片
-    st.markdown("#### 📈 整体统计")
+    st.write(f"共 {len(configs)} 位顾问已配置")
     
-    total_bonus = summary['总发奖金'].sum()
-    avg_bonus = summary['总发奖金'].mean()
-    total_consultants = len(summary)
+    # 顾问选择
+    consultant_names = [c.consultant_name for c in configs]
+    selected = st.selectbox("选择顾问查看/编辑规则", consultant_names)
     
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("顾问人数", f"{total_consultants}人")
-    with c2:
-        st.metric("总发奖金", format_currency(total_bonus))
-    with c3:
-        st.metric("人均奖金", format_currency(avg_bonus))
-    with c4:
-        high_performers = len(summary[summary['平均完成率'] >= 1.0])
-        st.metric("高绩效人数", f"{high_performers}人")
-    
-    st.markdown("---")
-    
-    # 团队汇总
-    st.markdown("#### 👥 按团队汇总")
-    team_summary = summary.groupby('团队').agg({
-        '顾问': 'count',
-        '月度奖金': 'sum',
-        '总发奖金': 'sum',
-        '平均完成率': 'mean',
-    }).reset_index()
-    team_summary.columns = ['团队', '人数', '月度奖金', '总发奖金', '平均完成率']
-    team_summary['平均完成率'] = team_summary['平均完成率'].apply(lambda x: f"{x*100:.1f}%")
-    
-    st.dataframe(team_summary, use_container_width=True, hide_index=True)
-    
-    st.markdown("---")
-    
-    # 顾问排名
-    st.markdown("#### 🏆 顾问绩效排名")
-    
-    sort_by = st.selectbox("排序方式", ["总发奖金", "平均完成率", "月度奖金"], key="okr_sort")
-    ascending = st.checkbox("升序", value=False, key="okr_asc")
-    
-    display_df = summary.sort_values(sort_by, ascending=ascending)
-    
-    # 颜色标记
-    def color_completion(val):
-        if isinstance(val, (int, float)):
-            if val >= 1.0:
-                return 'background-color: #d1fae5; color: #065f46'
-            elif val >= 0.7:
-                return 'background-color: #fef3c7; color: #92400e'
-            else:
-                return 'background-color: #fee2e2; color: #991b1b'
-        return ''
-    
-    styled = display_df[['顾问', '中文名', '级别', '团队', '指标数', '平均完成率', '月度奖金', '上月补发', '总发奖金']].style.map(
-        color_completion, subset=['平均完成率']
-    )
-    
-    st.dataframe(styled, use_container_width=True, hide_index=True)
-
-
-def render_okr_detail(okr_loader: OKRDataLoader):
-    """渲染OKR指标明细"""
-    detail = okr_loader.to_dataframe()
-    
-    if detail.empty:
-        st.warning("暂无OKR明细数据")
-        return
-    
-    # 筛选
-    st.markdown("#### 🔍 筛选")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        consultants = detail['顾问'].unique().tolist()
-        selected = st.multiselect("选择顾问", consultants)
-    with col2:
-        projects = detail['考核项目'].unique().tolist()
-        selected_projects = st.multiselect("考核项目", projects)
-    
-    filtered = detail.copy()
     if selected:
-        filtered = filtered[filtered['顾问'].isin(selected)]
-    if selected_projects:
-        filtered = filtered[filtered['考核项目'].isin(selected_projects)]
-    
-    # 显示明细
-    st.markdown("#### 📋 指标明细")
-    
-    display_cols = ['顾问', '考核项目', '考核指标', '权重', '实际完成', '实得奖金', '完成率']
-    display_df = filtered[display_cols].copy()
-    display_df['完成率'] = display_df['完成率'].apply(lambda x: f"{x*100:.1f}%" if pd.notna(x) else '-')
-    
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
-    
-    # 顾问展开详情
-    st.markdown("#### 📊 顾问OKR详情")
-    
-    for okr in okr_loader.consultant_okrs:
-        with st.expander(f"{okr.consultant_name} ({okr.chinese_name}) - 总奖金: {format_currency(okr.total_bonus)}"):
-            # 指标表格
-            ind_data = []
-            for ind in okr.indicators:
-                ind_data.append({
-                    '考核项目': ind.name,
-                    '考核指标': ind.target,
-                    '权重': ind.weight,
-                    '计算规则': ind.rule[:50] + '...' if len(ind.rule) > 50 else ind.rule,
-                    '实际完成': ind.actual,
-                    '实得奖金': ind.bonus,
-                    '完成率': f"{ind.completion_rate*100:.1f}%" if ind.completion_rate > 0 else '-',
-                })
-            
-            if ind_data:
-                st.dataframe(pd.DataFrame(ind_data), use_container_width=True, hide_index=True)
-            
-            # 汇总信息
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric("月度奖金", format_currency(okr.month_bonus))
-            with col2:
-                st.metric("上月补发", format_currency(okr.prev_month_adjustment))
-            with col3:
-                st.metric("总发奖金", format_currency(okr.total_bonus))
+        config = config_manager.load_config(selected)
+        if config:
+            with st.expander(f"{config.consultant_name} 的规则详情", expanded=True):
+                st.write(f"**级别**: {config.level}")
+                st.write(f"**团队**: {config.team}")
+                st.write(f"**汇报线**: {config.manager}")
+                st.write(f"**奖金基数**: {config.base_bonus}元")
+                
+                # 规则表格
+                rules_df = pd.DataFrame([
+                    {
+                        '指标类型': r.indicator_type,
+                        '指标名称': r.indicator_name,
+                        '目标值': r.target_value,
+                        '权重': r.weight,
+                        '奖金池': r.bonus_pool,
+                        '低门槛': r.threshold_low,
+                        '中门槛': r.threshold_mid,
+                        '全奖门槛': r.threshold_full,
+                        '周期': r.period,
+                    }
+                    for r in config.rules
+                ])
+                st.dataframe(rules_df, hide_index=True, use_container_width=True)
 
 
-def render_okr_system_comparison(okr_loader: OKRDataLoader, year: int, month: int):
-    """渲染系统数据对比"""
-    st.markdown("#### 🔄 OKR目标 vs 系统实时数据")
-    st.caption("将Excel中的OKR目标与数据库中的实际业务数据进行对比")
+def render_auto_calculation(config_manager: OKRConfigManager, result_store: OKRResultStore, year: int, month: int):
+    """渲染自动计算页面"""
+    st.markdown("### 🤖 自动计算OKR奖金")
+    st.caption(f"计算月份: {year}年{month}月")
     
     # 检查数据库连接
     try:
@@ -227,63 +155,252 @@ def render_okr_system_comparison(okr_loader: OKRDataLoader, year: int, month: in
         from gllue_db_client import GllueDBClient
         
         if not db_config_manager.has_config():
-            st.warning("请先配置数据库连接")
-            return
+            st.warning("⚠️ 未配置数据库连接，无法自动获取系统数据")
+            db_client = None
+        else:
+            db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
+    except Exception as e:
+        st.warning(f"⚠️ 数据库连接失败: {e}")
+        db_client = None
+    
+    # 加载配置
+    configs = config_manager.load_all_configs()
+    if not configs:
+        st.error("❌ 尚未配置OKR规则，请先前往『规则配置』标签页上传模板")
+        return
+    
+    st.write(f"已加载 {len(configs)} 位顾问的OKR规则")
+    
+    # 计算按钮
+    col1, col2 = st.columns([1, 3])
+    with col1:
+        if st.button("🚀 开始自动计算", type="primary"):
+            with st.spinner("计算中..."):
+                try:
+                    calculator = OKRCalculator(db_client)
+                    results = calculator.calculate_all(configs, year, month)
+                    
+                    # 保存结果
+                    for result in results:
+                        result_store.save_result(result)
+                    
+                    st.session_state.okr_calculation_results = results
+                    st.success(f"✅ 计算完成！已保存 {len(results)} 位顾问的结果")
+                    st.rerun()
+                    
+                except Exception as e:
+                    st.error(f"计算失败: {e}")
+                    import traceback
+                    with st.expander("查看错误详情"):
+                        st.code(traceback.format_exc())
+    
+    with col2:
+        # 显示上次计算时间
+        if 'okr_calculation_results' in st.session_state:
+            st.caption("上次计算结果已加载")
+    
+    # 显示计算结果
+    if 'okr_calculation_results' in st.session_state:
+        results = st.session_state.okr_calculation_results
         
-        db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
-        analyzer = OKRAnalyzer(okr_loader)
-        analyzer.set_db_client(db_client)
+        st.markdown("---")
+        st.markdown("### 📊 计算结果")
         
-        # 获取对比数据
-        compare_df = analyzer.compare_with_system(year, month)
+        # 汇总卡片
+        total_bonus = sum(r.total_bonus for r in results)
+        total_final = sum(r.final_bonus for r in results)
         
-        if compare_df.empty:
-            st.warning("暂无对比数据")
-            return
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("计算奖金总额", format_currency(total_bonus))
+        with c2:
+            st.metric("最终应发总额", format_currency(total_final))
+        with c3:
+            confirmed = sum(1 for r in results if r.status == 'confirmed')
+            st.metric("已确认", f"{confirmed}/{len(results)}人")
         
-        # 筛选有系统数据的行
-        has_data = compare_df[compare_df['系统实际完成'] > 0]
+        # 结果表格
+        result_data = []
+        for r in results:
+            result_data.append({
+                '顾问': r.consultant_name,
+                '中文名': r.chinese_name,
+                '计算奖金': r.total_bonus,
+                '上月补发': r.prev_month_adjustment,
+                '最终应发': r.final_bonus,
+                '状态': r.status,
+            })
         
-        if has_data.empty:
-            st.info("暂无系统数据可对比（可能所选月份无数据）")
-            return
+        result_df = pd.DataFrame(result_data)
         
-        st.markdown(f"#### 📊 有系统数据的指标 ({len(has_data)}条)")
-        
-        # 显示对比表
-        display_cols = ['顾问', '考核项目', '考核指标', '权重', 'OKR实际完成', '系统实际完成', '差异']
-        display_df = has_data[display_cols].copy()
-        
-        # 颜色标记差异
-        def color_diff(val):
-            if isinstance(val, (int, float)):
-                if val > 0:
-                    return 'color: #059669; font-weight: bold'
-                elif val < 0:
-                    return 'color: #dc2626'
+        # 颜色标记
+        def color_status(val):
+            if val == 'confirmed':
+                return 'background-color: #d1fae5; color: #065f46'
+            elif val == 'adjusted':
+                return 'background-color: #fef3c7; color: #92400e'
             return ''
         
-        styled = display_df.style.map(color_diff, subset=['差异'])
+        styled = result_df.style.map(color_status, subset=['状态'])
         st.dataframe(styled, use_container_width=True, hide_index=True)
         
-        # 按顾问汇总
-        st.markdown("#### 👤 按顾问汇总")
+        # 展开查看详情
+        st.markdown("#### 📋 详细计算过程")
+        for r in results:
+            with st.expander(f"{r.consultant_name} ({r.chinese_name}) - 应发: {format_currency(r.final_bonus)}"):
+                for ind in r.indicator_results:
+                    col1, col2, col3, col4 = st.columns([3, 2, 2, 3])
+                    with col1:
+                        st.write(f"**{ind['indicator_name']}**")
+                        st.caption(f"类型: {ind['indicator_type']}")
+                    with col2:
+                        st.write(f"目标: {ind['target_value']}")
+                        st.write(f"实际: {ind['actual_value']}")
+                    with col3:
+                        completion = ind['completion_rate']
+                        st.write(f"完成率: {completion*100:.1f}%")
+                        st.write(f"奖金: {format_currency(ind['calculated_bonus'])}")
+                    with col4:
+                        st.caption(ind['calculation_detail'])
+                        if not ind['is_auto']:
+                            st.warning("⚠️ 自定义指标，需人工核对")
+
+
+def render_manual_review(result_store: OKRResultStore, year: int, month: int):
+    """渲染人工校对页面"""
+    st.markdown("### ✏️ 人工校对")
+    st.caption("查看自动计算结果，进行人工调整和确认")
+    
+    # 加载该月的计算结果
+    results = result_store.load_month_results(year, month)
+    
+    if not results:
+        st.info("暂无计算结果，请先前往『自动计算』标签页进行计算")
+        return
+    
+    # 顾问选择
+    consultant_names = [r.consultant_name for r in results]
+    selected = st.selectbox("选择顾问进行校对", consultant_names)
+    
+    if selected:
+        result = next((r for r in results if r.consultant_name == selected), None)
+        if not result:
+            st.error("未找到该顾问的计算结果")
+            return
         
-        consultant_summary = compare_df.groupby('顾问').agg({
-            '系统实际完成': 'sum',
-            'OKR实际完成': 'sum',
-            '差异': 'sum',
-        }).reset_index()
+        st.markdown(f"#### {result.consultant_name} ({result.chinese_name})")
         
-        consultant_summary['系统完成率'] = compare_df.groupby('顾问').apply(
-            lambda x: x[x['目标值'] > 0]['系统实际完成'].sum() / x[x['目标值'] > 0]['目标值'].sum() 
-            if x[x['目标值'] > 0]['目标值'].sum() > 0 else 0
-        ).values
+        # 显示各项指标
+        st.markdown("**指标明细**")
+        for i, ind in enumerate(result.indicator_results):
+            col1, col2, col3 = st.columns([3, 2, 2])
+            with col1:
+                st.write(f"{ind['indicator_name']}")
+            with col2:
+                st.write(f"实际: {ind['actual_value']} / 目标: {ind['target_value']}")
+            with col3:
+                st.write(f"奖金: {format_currency(ind['calculated_bonus'])}")
         
-        st.dataframe(consultant_summary, use_container_width=True, hide_index=True)
+        st.markdown("---")
         
-    except Exception as e:
-        st.error(f"系统数据对比失败: {e}")
-        import traceback
-        with st.expander("查看错误详情"):
-            st.code(traceback.format_exc())
+        # 调整区域
+        st.markdown("**奖金调整**")
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("计算奖金", format_currency(result.total_bonus))
+        with col2:
+            st.metric("上月补发", format_currency(result.prev_month_adjustment))
+        with col3:
+            st.metric("当前最终应发", format_currency(result.final_bonus))
+        
+        # 调整表单
+        with st.form("adjust_form"):
+            new_bonus = st.number_input(
+                "调整后最终应发",
+                value=float(result.final_bonus),
+                step=100.0,
+                min_value=0.0
+            )
+            adjust_note = st.text_area("调整说明", value=result.adjustment_note)
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                confirm_btn = st.form_submit_button("✅ 确认无误", type="primary")
+            with col2:
+                adjust_btn = st.form_submit_button("✏️ 保存调整")
+        
+        if confirm_btn:
+            result_store.confirm_result(
+                result.consultant_name, year, month,
+                adjusted_by="system", note="人工确认"
+            )
+            st.success("✅ 已确认")
+            st.rerun()
+        
+        if adjust_btn:
+            result_store.adjust_bonus(
+                result.consultant_name, year, month,
+                new_bonus=new_bonus,
+                adjusted_by="admin",
+                note=adjust_note
+            )
+            st.success("✅ 调整已保存")
+            st.rerun()
+
+
+def render_history(result_store: OKRResultStore):
+    """渲染历史记录页面"""
+    st.markdown("### 📊 历史记录")
+    st.caption("查看历史月份的OKR计算结果")
+    
+    # 获取所有历史月份
+    all_results = []
+    for path in result_store.RESULT_DIR.glob("*.json"):
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            all_results.append(data)
+    
+    if not all_results:
+        st.info("暂无历史记录")
+        return
+    
+    # 按月份分组
+    months = sorted(set(f"{r['year']}-{r['month']:02d}" for r in all_results))
+    
+    selected_month = st.selectbox("选择月份", months)
+    
+    if selected_month:
+        year, month = map(int, selected_month.split('-'))
+        results = result_store.load_month_results(year, month)
+        
+        # 汇总
+        st.markdown(f"#### {year}年{month}月 汇总")
+        
+        total = sum(r.final_bonus for r in results)
+        confirmed = sum(1 for r in results if r.status == 'confirmed')
+        adjusted = sum(1 for r in results if r.status == 'adjusted')
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.metric("总人数", len(results))
+        with c2:
+            st.metric("应发总额", format_currency(total))
+        with c3:
+            st.metric("确认状态", f"已确认:{confirmed} / 已调整:{adjusted}")
+        
+        # 明细表
+        history_data = []
+        for r in results:
+            history_data.append({
+                '顾问': r.consultant_name,
+                '中文名': r.chinese_name,
+                '计算奖金': r.total_bonus,
+                '上月补发': r.prev_month_adjustment,
+                '最终应发': r.final_bonus,
+                '状态': r.status,
+                '调整人': r.adjusted_by,
+                '调整说明': r.adjustment_note,
+            })
+        
+        st.dataframe(pd.DataFrame(history_data), use_container_width=True, hide_index=True)
