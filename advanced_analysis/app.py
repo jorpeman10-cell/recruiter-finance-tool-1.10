@@ -2578,6 +2578,7 @@ def render_consultant_full_analysis():
         
         # 详细改进建议展开
         st.markdown("#### 📋 详细改进建议")
+        st.caption("💡 数据口径：推荐/面试/Offer/已回款均为近1年数据 | 增减基准=团队均值")
         for _, row in display_df.iterrows():
             if row['差距数量'] > 0:
                 with st.expander(f"{row['顾问']} — {row['综合评级']} | 主攻: {row['主攻方向']}"):
@@ -2586,6 +2587,7 @@ def render_consultant_full_analysis():
                     
                     # 与团队均值对比
                     st.markdown("**与团队均值对比：**")
+                    st.caption(f"团队均值: 推荐={benchmark.get('avg_cv', 0):.0f} | 面试={benchmark.get('avg_interview', 0):.0f} | Offer={benchmark.get('avg_offer', 0):.1f} | 已回款=¥{benchmark.get('avg_invoice', 0)/10000:.1f}万")
                     c1, c2, c3, c4 = st.columns(4)
                     with c1:
                         diff_cv = row['推荐数'] - benchmark.get('avg_cv', 0)

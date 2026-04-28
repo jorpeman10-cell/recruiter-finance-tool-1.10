@@ -89,6 +89,7 @@ class UnifiedDataLoader:
         # 7. 回款数据（invoiceassignment）
         # 注意：invoiceassignment 表没有 invoice_status 和 dateAdded 列
         # 通过 invoice_id 关联 invoice 表获取状态
+        # 统一口径：只统计近1年的回款（与其他指标保持一致）
         self._data['invoices'] = get_cached_query(f"""
             SELECT ia.id, ia.user_id, ia.revenue, 
                    CONCAT(IFNULL(u.englishName, ''), ' ', IFNULL(u.chineseName, '')) as consultant
@@ -168,7 +169,7 @@ class UnifiedDataLoader:
             interview_count = len(interviews[interviews['user_id'] == user_id])
             offer_count = len(offers[offers['user_id'] == user_id])
             
-            # 结果指标
+            # 结果指标（统一口径：近1年）
             invoice_total = invoices[invoices['user_id'] == user_id]['revenue'].sum()
             forecast_total = forecasts[forecasts['user_id'] == user_id]['forecast_fee'].sum()
             
