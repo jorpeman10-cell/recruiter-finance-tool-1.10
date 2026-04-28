@@ -2257,13 +2257,14 @@ def main():
     # 渲染侧边栏
     render_sidebar()
     
-    # 主内容区标签页（合并为6大板块）
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    # 主内容区标签页（合并为7大板块）
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
         "💰 现金流与预警",
         "👤 顾问全景分析",
         "📈 Pipeline与预测",
         "🗺️ Mapping质量",
         "📋 财务深度分析",
+        "🎯 OKR与绩效",
         "🔮 情景模拟",
     ])
     
@@ -2287,6 +2288,10 @@ def main():
         render_real_finance_page(st.session_state.analyzer)
     
     with tab6:
+        from pages.okr_page import render_okr_page
+        render_okr_page()
+    
+    with tab7:
         render_whatif_simulator()
 
 
