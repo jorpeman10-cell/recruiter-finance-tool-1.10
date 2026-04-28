@@ -2478,7 +2478,9 @@ def render_consultant_full_analysis():
             # 检查是否有预加载的数据
             if is_data_ready():
                 # 使用预加载的数据，避免重复查询
-                users_df = get_preloaded_data('users') or pd.DataFrame()
+                users_df = get_preloaded_data('users')
+                if users_df is None:
+                    users_df = pd.DataFrame()
                 # 创建 loader 但不执行 load_all()，直接注入预加载的数据
                 db_client = GllueDBClient(db_config_manager.get_gllue_db_config())
                 loader = UnifiedDataLoader(db_client)
