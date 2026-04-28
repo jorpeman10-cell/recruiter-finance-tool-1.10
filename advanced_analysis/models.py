@@ -534,7 +534,7 @@ class AdvancedRecruitmentAnalyzer:
             else:
                 return 1, '已离职', info.get('join_date'), info.get('leave_date')
         
-        # 模糊匹配
+        # 模糊匹配：支持中英文部分匹配（处理名字差异，如"芃"vs"梵"）
         for db_name, info in self.consultant_db_info.items():
             if (db_name == consultant_name or 
                 db_name in consultant_name or 
@@ -546,6 +546,23 @@ class AdvancedRecruitmentAnalyzer:
                     return 1, '已离职', info.get('join_date'), info.get('leave_date')
                 else:
                     return 1, '已离职', info.get('join_date'), info.get('leave_date')
+        
+        # 英文名匹配：如果配置表名字和数据库名字的英文部分相同（处理中文名差异）
+        # 提取 consultant_name 中的英文单词
+        import re
+        consultant_en_words = set(re.findall(r'[A-Za-z]+', consultant_name.lower()))
+        if consultant_en_words:
+            for db_name, info in self.consultant_db_info.items():
+                db_en_words = set(re.findall(r'[A-Za-z]+', db_name.lower()))
+                # 如果英文单词完全匹配（如 Leslie + Yang），认为是同一个人
+                if consultant_en_words == db_en_words and len(consultant_en_words) >= 2:
+                    status = info.get('status', '')
+                    if status == 'Active':
+                        return 2, '在职', info.get('join_date'), info.get('leave_date')
+                    elif status == 'Leave':
+                        return 1, '已离职', info.get('join_date'), info.get('leave_date')
+                    else:
+                        return 1, '已离职', info.get('join_date'), info.get('leave_date')
         
         return None, None, None, None
     
