@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-28T18:36:52.154842", "sql": "\n            SELECT id, name, parent_id FROM team\n        "}

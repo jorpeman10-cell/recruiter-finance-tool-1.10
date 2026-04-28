@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-25T21:12:18.319336", "sql": "SELECT ci.id, js.user_id, ci.date FROM clientinterview ci JOIN jobsubmission js ON ci.jobsubmission_id = js.id LIMIT 2"}

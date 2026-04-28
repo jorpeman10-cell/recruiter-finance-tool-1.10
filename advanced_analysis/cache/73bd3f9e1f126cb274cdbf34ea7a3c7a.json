@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-25T20:06:59.944680", "sql": "\n            SELECT id, englishName, chineseName, team_id, status\n            FROM user\n            WHERE status = 'Active'\n        "}

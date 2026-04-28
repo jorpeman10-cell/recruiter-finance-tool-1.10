@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-28T18:37:10.866586", "sql": "\n            SELECT os.id, os.user_id, os.signDate, os.revenue, os.jobsubmission_id,\n                   CONCAT(IFNULL(u.englishName, ''), ' ', IFNULL(u.chineseName, '')) as consultant\n            FROM"}

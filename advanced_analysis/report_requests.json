@@ -1,0 +1,4373 @@
+[
+  {
+    "name": "clientinterview",
+    "label": "客户面试",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -50,
+            "name": "clientinterview",
+            "group": "jobsubmission",
+            "available_models": [
+              "clientinterview",
+              "joborder",
+              "joborderuser",
+              "jobsubmission"
+            ],
+            "analysis_models": [
+              "clientinterview",
+              "joborder",
+              "jobsubmission"
+            ],
+            "alias": "clientinterview:t1,jobsubmission:t2,joborder:t4,joborderuser:t10",
+            "join_condition": "t1.`jobsubmission_id`+=+t2.`id`+and+t2.`joborder_id`+=+t4.`id`+and+t10.`joborder_id`+=+t4.`id`",
+            "default_date_field": "",
+            "detail_model": "clientinterview",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "clientinterview",
+              "t2": "jobsubmission",
+              "t4": "joborder",
+              "t10": "joborderuser"
+            },
+            "label": "客户面试"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "count(distinct+clientinterview.id)",
+              "label": {
+                "zh_CN": "客户面试",
+                "en": "Client+Interview",
+                "zh_TW": "客戶面試"
+              },
+              "id": "distinct+clientinterview.id",
+              "field_name": "dup_gx3-iKEz8"
+            }
+          ],
+          "common_date_arr": [
+            {
+              "model": "clientinterview",
+              "field": "date"
+            }
+          ],
+          "common_field_map": {
+            "jobsubmission": {
+              "model": "jobsubmission",
+              "field": "id"
+            },
+            "position": {
+              "model": "jobsubmission",
+              "field": "position"
+            },
+            "channel": {
+              "model": "jobsubmission",
+              "field": "channel"
+            },
+            "glluemeuser": {
+              "model": "jobsubmission",
+              "field": "glluemeuser"
+            },
+            "careertalk": {
+              "model": "jobsubmission",
+              "field": "careertalk"
+            },
+            "joborder": {
+              "model": "jobsubmission",
+              "field": "joborder"
+            },
+            "candidate": {
+              "model": "jobsubmission",
+              "field": "candidate"
+            },
+            "user": {
+              "model": "clientinterview",
+              "field": "user"
+            },
+            "portalapply": {
+              "model": "jobsubmission",
+              "field": "portalapply"
+            },
+            "test": {
+              "model": "jobsubmission",
+              "field": "test"
+            },
+            "minipositionapply": {
+              "model": "jobsubmission",
+              "field": "mini_position_apply"
+            },
+            "client": {
+              "model": "joborder",
+              "field": "client"
+            },
+            "expressionrulegroup": {
+              "model": "joborder",
+              "field": "rating_rule"
+            },
+            "resumefilterrule": {
+              "model": "joborder",
+              "field": "resume_filter_rule"
+            },
+            "campusrecruitment": {
+              "model": "joborder",
+              "field": "campusrecruitment"
+            },
+            "clientcontract": {
+              "model": "joborder",
+              "field": "contract"
+            },
+            "team": {
+              "model": "joborder",
+              "field": "team"
+            },
+            "joborderuser": {
+              "model": "joborderuser",
+              "field": "id"
+            },
+            "clientinterview": {
+              "model": "clientinterview",
+              "field": "id"
+            },
+            "companylocation": {
+              "model": "clientinterview",
+              "field": "companylocation"
+            },
+            "meetingroom": {
+              "model": "clientinterview",
+              "field": "meetingroom"
+            },
+            "clientinterviewfeedback": {
+              "model": "clientinterview",
+              "field": "feedback"
+            },
+            "clientinterviewcandidatefeedback": {
+              "model": "clientinterview",
+              "field": "candidatefeedback"
+            },
+            "clientinterviewgroup": {
+              "model": "clientinterview",
+              "field": "clientinterviewgroup"
+            },
+            "attendrecord": {
+              "model": "clientinterview",
+              "field": "candidate_attendrecord"
+            },
+            "interviewcampaign": {
+              "model": "clientinterview",
+              "field": "interview_campaign"
+            },
+            "siteresume": {
+              "model": "jobsubmission",
+              "field": "siteresume"
+            },
+            "function": {
+              "model": "joborder",
+              "field": "function"
+            },
+            "workflowdefinition": {
+              "model": "joborder",
+              "field": "workflow_spec"
+            },
+            "industry": {
+              "model": "joborder",
+              "field": "industry"
+            }
+          },
+          "query_filters": "clientinterview__active__eq=1&jobsubmission__candidate__is_deleted__eq&clientinterview__date__this_year=",
+          "persist_query_filters": "clientinterview__date__this_year=",
+          "group_fields": [
+            {
+              "model": "clientinterview",
+              "field": "date",
+              "date_group_type": "week"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "用户",
+                "zh_TW": "用户"
+              },
+              "path": [
+                {
+                  "model": "clientinterview",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sort": "dup_gx3-iKEz8|desc"
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "invoice",
+          "field": "paymentReceivedDate",
+          "name": "paymentReceivedDate",
+          "date_group_type": "week",
+          "label": {
+            "zh_CN": "周",
+            "en": "日期",
+            "zh_TW": "日期"
+          },
+          "path": [],
+          "description": "",
+          "sort": "__self__|asc"
+        },
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "用户",
+            "zh_TW": "用户"
+          },
+          "path": [],
+          "sort": "dup_gx3-iKEz8|desc"
+        }
+      ],
+      "subtotalInfos": [
+        {
+          "group_by_idx": [
+            0
+          ]
+        }
+      ],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -295
+    }
+  },
+  {
+    "name": "cvsent",
+    "label": "简历推荐",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -52,
+            "name": "cvsent",
+            "group": "jobsubmission",
+            "available_models": [
+              "cvsent",
+              "joborder",
+              "joborderuser",
+              "jobsubmission"
+            ],
+            "analysis_models": [
+              "cvsent",
+              "joborder",
+              "jobsubmission"
+            ],
+            "alias": "cvsent:t1,jobsubmission:t2,joborder:t4,joborderuser:t10",
+            "join_condition": "t1.`jobsubmission_id`+=+t2.`id`+and+t2.`joborder_id`+=+t4.`id`+and+t10.`joborder_id`+=+t4.`id`",
+            "default_date_field": "",
+            "detail_model": "cvsent",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "cvsent",
+              "t2": "jobsubmission",
+              "t4": "joborder",
+              "t10": "joborderuser"
+            },
+            "label": "简历推荐"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "count(distinct+jobsubmission.id)",
+              "label": {
+                "zh_CN": "简历推荐",
+                "en": "CV+Sent",
+                "zh_TW": "簡歷圖鑒"
+              },
+              "id": "distinct+jobsubmission.id",
+              "field_name": "count_1629099178011",
+              "detail_model": "jobsubmission"
+            }
+          ],
+          "common_date_arr": [
+            {
+              "model": "cvsent",
+              "field": "date"
+            }
+          ],
+          "common_field_map": {
+            "jobsubmission": {
+              "model": "jobsubmission",
+              "field": "id"
+            },
+            "joborder": {
+              "model": "jobsubmission",
+              "field": "joborder"
+            },
+            "user": {
+              "model": "cvsent",
+              "field": "user"
+            },
+            "client": {
+              "model": "joborder",
+              "field": "client"
+            },
+            "clientcontract": {
+              "model": "joborder",
+              "field": "contract"
+            },
+            "position": {
+              "model": "jobsubmission",
+              "field": "position"
+            },
+            "channel": {
+              "model": "jobsubmission",
+              "field": "channel"
+            },
+            "glluemeuser": {
+              "model": "jobsubmission",
+              "field": "glluemeuser"
+            },
+            "careertalk": {
+              "model": "jobsubmission",
+              "field": "careertalk"
+            },
+            "candidate": {
+              "model": "jobsubmission",
+              "field": "candidate"
+            },
+            "portalapply": {
+              "model": "jobsubmission",
+              "field": "portalapply"
+            },
+            "test": {
+              "model": "jobsubmission",
+              "field": "test"
+            },
+            "minipositionapply": {
+              "model": "jobsubmission",
+              "field": "mini_position_apply"
+            },
+            "expressionrulegroup": {
+              "model": "joborder",
+              "field": "rating_rule"
+            },
+            "resumefilterrule": {
+              "model": "joborder",
+              "field": "resume_filter_rule"
+            },
+            "campusrecruitment": {
+              "model": "joborder",
+              "field": "campusrecruitment"
+            },
+            "team": {
+              "model": "joborder",
+              "field": "team"
+            },
+            "joborderuser": {
+              "model": "joborderuser",
+              "field": "id"
+            },
+            "cvsent": {
+              "model": "cvsent",
+              "field": "id"
+            },
+            "note": {
+              "model": "cvsent",
+              "field": "note"
+            },
+            "cvsentfeedback": {
+              "model": "cvsent",
+              "field": "feedback"
+            },
+            "siteresume": {
+              "model": "jobsubmission",
+              "field": "siteresume"
+            },
+            "function": {
+              "model": "joborder",
+              "field": "function"
+            },
+            "workflowdefinition": {
+              "model": "joborder",
+              "field": "workflow_spec"
+            },
+            "industry": {
+              "model": "joborder",
+              "field": "industry"
+            }
+          },
+          "query_filters": "cvsent__active__eq=1&jobsubmission__candidate__is_deleted__eq&cvsent__date__this_year=",
+          "persist_query_filters": "cvsent__date__this_year=",
+          "group_fields": [
+            {
+              "model": "cvsent",
+              "field": "date",
+              "date_group_type": "week"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "用户",
+                "zh_TW": "用户"
+              },
+              "path": [
+                {
+                  "model": "cvsent",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sort": "count_1629099178011|desc"
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "invoice",
+          "field": "paymentReceivedDate",
+          "name": "paymentReceivedDate",
+          "date_group_type": "week",
+          "label": {
+            "zh_CN": "周",
+            "en": "日期",
+            "zh_TW": "日期"
+          },
+          "path": [],
+          "description": "",
+          "sort": "__self__|asc"
+        },
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "用户",
+            "zh_TW": "用户"
+          },
+          "path": [],
+          "sort": "count_1629099178011|desc"
+        }
+      ],
+      "subtotalInfos": [
+        {
+          "group_by_idx": [
+            0
+          ]
+        }
+      ],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -294
+    }
+  },
+  {
+    "name": "joborder",
+    "label": "项目",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -7,
+            "name": "joborder",
+            "group": "joborder",
+            "available_models": [
+              "joborder",
+              "joborderuser"
+            ],
+            "analysis_models": [
+              "joborder"
+            ],
+            "alias": "joborder:t1,joborderuser:t2",
+            "join_condition": "t2.`joborder_id`+=+t1.`id`",
+            "default_date_field": "",
+            "detail_model": "joborder",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "joborder",
+              "t2": "joborderuser"
+            },
+            "label": "项目"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "count(distinct+joborder.id)",
+              "label": {
+                "zh_CN": "项目新增",
+                "en": "数量",
+                "zh_TW": "数量"
+              },
+              "id": "distinct+joborder.id",
+              "field_name": "dup_gmgtv7HCO"
+            }
+          ],
+          "common_date_arr": [
+            {
+              "model": "joborder",
+              "field": "openDate"
+            }
+          ],
+          "common_field_map": {
+            "joborder": {
+              "model": "joborder",
+              "field": "id"
+            },
+            "user": {
+              "model": "joborderuser",
+              "field": "user"
+            },
+            "client": {
+              "model": "joborder",
+              "field": "client"
+            },
+            "expressionrulegroup": {
+              "model": "joborder",
+              "field": "rating_rule"
+            },
+            "resumefilterrule": {
+              "model": "joborder",
+              "field": "resume_filter_rule"
+            },
+            "campusrecruitment": {
+              "model": "joborder",
+              "field": "campusrecruitment"
+            },
+            "clientcontract": {
+              "model": "joborder",
+              "field": "contract"
+            },
+            "team": {
+              "model": "joborder",
+              "field": "team"
+            },
+            "joborderuser": {
+              "model": "joborderuser",
+              "field": "id"
+            },
+            "function": {
+              "model": "joborder",
+              "field": "function"
+            },
+            "industry": {
+              "model": "joborder",
+              "field": "industry"
+            },
+            "workflowdefinition": {
+              "model": "joborder",
+              "field": "workflow_spec"
+            }
+          },
+          "query_filters": "joborder__is_deleted__eq&joborder__is_template__eq&joborder__openDate__this_year=",
+          "persist_query_filters": "joborder__openDate__this_year=",
+          "group_fields": [
+            {
+              "model": "joborder",
+              "field": "openDate",
+              "date_group_type": "week"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "用户",
+                "zh_TW": "用户"
+              },
+              "path": [
+                {
+                  "model": "joborderuser",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sort": "dup_gmgtv7HCO|desc"
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "invoice",
+          "field": "paymentReceivedDate",
+          "name": "paymentReceivedDate",
+          "date_group_type": "week",
+          "label": {
+            "zh_CN": "周",
+            "en": "日期",
+            "zh_TW": "日期"
+          },
+          "path": [],
+          "description": "",
+          "sort": "__self__|asc"
+        },
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "用户",
+            "zh_TW": "用户"
+          },
+          "path": [],
+          "sort": "dup_gmgtv7HCO|desc"
+        }
+      ],
+      "subtotalInfos": [
+        {
+          "group_by_idx": [
+            0
+          ]
+        }
+      ],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -293
+    }
+  },
+  {
+    "name": "cvsent",
+    "label": "简历推荐",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -52,
+            "name": "cvsent",
+            "group": "jobsubmission",
+            "available_models": [
+              "cvsent",
+              "joborder",
+              "joborderuser",
+              "jobsubmission"
+            ],
+            "analysis_models": [
+              "cvsent",
+              "joborder",
+              "jobsubmission"
+            ],
+            "alias": "cvsent:t1,jobsubmission:t2,joborder:t4,joborderuser:t10",
+            "join_condition": "t1.`jobsubmission_id`+=+t2.`id`+and+t2.`joborder_id`+=+t4.`id`+and+t10.`joborder_id`+=+t4.`id`",
+            "default_date_field": "",
+            "detail_model": "cvsent",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "cvsent",
+              "t2": "jobsubmission",
+              "t4": "joborder",
+              "t10": "joborderuser"
+            },
+            "label": "简历推荐"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "count(distinct+jobsubmission.id)",
+              "label": {
+                "zh_CN": "简历推荐",
+                "en": "CV+Sent",
+                "zh_TW": "簡歷圖鑒"
+              },
+              "id": "distinct+jobsubmission.id",
+              "field_name": "count_1629099178011",
+              "detail_model": "jobsubmission"
+            }
+          ],
+          "common_date_arr": [
+            {
+              "model": "cvsent",
+              "field": "date"
+            }
+          ],
+          "common_field_map": {
+            "jobsubmission": {
+              "model": "jobsubmission",
+              "field": "id"
+            },
+            "joborder": {
+              "model": "jobsubmission",
+              "field": "joborder"
+            },
+            "user": {
+              "model": "cvsent",
+              "field": "user"
+            },
+            "client": {
+              "model": "joborder",
+              "field": "client"
+            },
+            "clientcontract": {
+              "model": "joborder",
+              "field": "contract"
+            },
+            "position": {
+              "model": "jobsubmission",
+              "field": "position"
+            },
+            "channel": {
+              "model": "jobsubmission",
+              "field": "channel"
+            },
+            "glluemeuser": {
+              "model": "jobsubmission",
+              "field": "glluemeuser"
+            },
+            "careertalk": {
+              "model": "jobsubmission",
+              "field": "careertalk"
+            },
+            "candidate": {
+              "model": "jobsubmission",
+              "field": "candidate"
+            },
+            "portalapply": {
+              "model": "jobsubmission",
+              "field": "portalapply"
+            },
+            "test": {
+              "model": "jobsubmission",
+              "field": "test"
+            },
+            "minipositionapply": {
+              "model": "jobsubmission",
+              "field": "mini_position_apply"
+            },
+            "expressionrulegroup": {
+              "model": "joborder",
+              "field": "rating_rule"
+            },
+            "resumefilterrule": {
+              "model": "joborder",
+              "field": "resume_filter_rule"
+            },
+            "campusrecruitment": {
+              "model": "joborder",
+              "field": "campusrecruitment"
+            },
+            "team": {
+              "model": "joborder",
+              "field": "team"
+            },
+            "joborderuser": {
+              "model": "joborderuser",
+              "field": "id"
+            },
+            "cvsent": {
+              "model": "cvsent",
+              "field": "id"
+            },
+            "note": {
+              "model": "cvsent",
+              "field": "note"
+            },
+            "cvsentfeedback": {
+              "model": "cvsent",
+              "field": "feedback"
+            },
+            "siteresume": {
+              "model": "jobsubmission",
+              "field": "siteresume"
+            },
+            "function": {
+              "model": "joborder",
+              "field": "function"
+            },
+            "industry": {
+              "model": "joborder",
+              "field": "industry"
+            },
+            "workflowdefinition": {
+              "model": "joborder",
+              "field": "workflow_spec"
+            }
+          },
+          "query_filters": "cvsent__active__eq=1&cvsent__user__team__children=%7B%7Buser.team.id%7D%7D&cvsent__user__status__s=Active&cvsent__date__this_year=",
+          "persist_query_filters": "cvsent__user__team__children=%7B%7Buser.team.id%7D%7D&cvsent__user__status__s=Active&cvsent__date__this_year=",
+          "group_fields": [
+            {
+              "model": "cvsent",
+              "field": "date",
+              "date_group_type": "week"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "cvsent",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                964,
+                954,
+                952,
+                951,
+                946,
+                933,
+                927,
+                917,
+                898,
+                875,
+                851,
+                845,
+                761,
+                751,
+                750
+              ]
+            }
+          ]
+        },
+        {
+          "template": {
+            "id": -50,
+            "name": "clientinterview",
+            "group": "jobsubmission",
+            "available_models": [
+              "clientinterview",
+              "joborder",
+              "joborderuser",
+              "jobsubmission"
+            ],
+            "analysis_models": [
+              "clientinterview",
+              "joborder",
+              "jobsubmission"
+            ],
+            "alias": "clientinterview:t1,jobsubmission:t2,joborder:t4,joborderuser:t10",
+            "join_condition": "t1.`jobsubmission_id`+=+t2.`id`+and+t2.`joborder_id`+=+t4.`id`+and+t10.`joborder_id`+=+t4.`id`",
+            "default_date_field": "",
+            "detail_model": "clientinterview",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "clientinterview",
+              "t2": "jobsubmission",
+              "t4": "joborder",
+              "t10": "joborderuser"
+            },
+            "label": "客户面试"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "count(distinct+clientinterview.id)",
+              "label": {
+                "zh_CN": "客户面试",
+                "en": "Client+Interview",
+                "zh_TW": "客戶面試"
+              },
+              "id": "distinct+clientinterview.id",
+              "field_name": "count_1629099399878"
+            }
+          ],
+          "common_date_arr": [
+            {
+              "model": "clientinterview",
+              "field": "date"
+            }
+          ],
+          "common_field_map": {
+            "jobsubmission": {
+              "model": "jobsubmission",
+              "field": "id"
+            },
+            "position": {
+              "model": "jobsubmission",
+              "field": "position"
+            },
+            "channel": {
+              "model": "jobsubmission",
+              "field": "channel"
+            },
+            "glluemeuser": {
+              "model": "jobsubmission",
+              "field": "glluemeuser"
+            },
+            "careertalk": {
+              "model": "jobsubmission",
+              "field": "careertalk"
+            },
+            "joborder": {
+              "model": "jobsubmission",
+              "field": "joborder"
+            },
+            "candidate": {
+              "model": "jobsubmission",
+              "field": "candidate"
+            },
+            "user": {
+              "model": "clientinterview",
+              "field": "user"
+            },
+            "portalapply": {
+              "model": "jobsubmission",
+              "field": "portalapply"
+            },
+            "test": {
+              "model": "jobsubmission",
+              "field": "test"
+            },
+            "minipositionapply": {
+              "model": "jobsubmission",
+              "field": "mini_position_apply"
+            },
+            "client": {
+              "model": "joborder",
+              "field": "client"
+            },
+            "expressionrulegroup": {
+              "model": "joborder",
+              "field": "rating_rule"
+            },
+            "resumefilterrule": {
+              "model": "joborder",
+              "field": "resume_filter_rule"
+            },
+            "campusrecruitment": {
+              "model": "joborder",
+              "field": "campusrecruitment"
+            },
+            "clientcontract": {
+              "model": "joborder",
+              "field": "contract"
+            },
+            "team": {
+              "model": "joborder",
+              "field": "team"
+            },
+            "joborderuser": {
+              "model": "joborderuser",
+              "field": "id"
+            },
+            "clientinterview": {
+              "model": "clientinterview",
+              "field": "id"
+            },
+            "companylocation": {
+              "model": "clientinterview",
+              "field": "companylocation"
+            },
+            "meetingroom": {
+              "model": "clientinterview",
+              "field": "meetingroom"
+            },
+            "clientinterviewfeedback": {
+              "model": "clientinterview",
+              "field": "feedback"
+            },
+            "clientinterviewcandidatefeedback": {
+              "model": "clientinterview",
+              "field": "candidatefeedback"
+            },
+            "clientinterviewgroup": {
+              "model": "clientinterview",
+              "field": "clientinterviewgroup"
+            },
+            "attendrecord": {
+              "model": "clientinterview",
+              "field": "candidate_attendrecord"
+            },
+            "interviewcampaign": {
+              "model": "clientinterview",
+              "field": "interview_campaign"
+            },
+            "siteresume": {
+              "model": "jobsubmission",
+              "field": "siteresume"
+            },
+            "function": {
+              "model": "joborder",
+              "field": "function"
+            },
+            "industry": {
+              "model": "joborder",
+              "field": "industry"
+            },
+            "workflowdefinition": {
+              "model": "joborder",
+              "field": "workflow_spec"
+            }
+          },
+          "query_filters": "clientinterview__active__eq=1&clientinterview__user__team__children=%7B%7Buser.team.id%7D%7D&clientinterview__user__status__s=Active&clientinterview__date__this_year=",
+          "persist_query_filters": "clientinterview__user__team__children=%7B%7Buser.team.id%7D%7D&clientinterview__user__status__s=Active&clientinterview__date__this_year=",
+          "group_fields": [
+            {
+              "model": "clientinterview",
+              "field": "date",
+              "date_group_type": "week"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "clientinterview",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                964,
+                954,
+                952,
+                951,
+                946,
+                933,
+                927,
+                917,
+                898,
+                875,
+                851,
+                845,
+                761,
+                751,
+                750
+              ]
+            }
+          ]
+        },
+        {
+          "template": {
+            "id": -24,
+            "name": "offersign",
+            "group": "jobsubmission",
+            "available_models": [
+              "joborder",
+              "joborderuser",
+              "jobsubmission",
+              "offersign"
+            ],
+            "analysis_models": [
+              "joborder",
+              "jobsubmission",
+              "offersign"
+            ],
+            "alias": "offersign:t1,jobsubmission:t2,joborder:t3,joborderuser:t10",
+            "join_condition": "t1.`jobsubmission_id`+=+t2.`id`+and+t2.`joborder_id`+=+t3.`id`+and+t10.`joborder_id`+=+t3.`id`",
+            "default_date_field": "",
+            "detail_model": "offersign",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "offersign",
+              "t2": "jobsubmission",
+              "t3": "joborder",
+              "t10": "joborderuser"
+            },
+            "label": "Offer"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "count(distinct+offersign.id)",
+              "label": {
+                "zh_CN": "Offer",
+                "en": "Offer",
+                "zh_TW": "Offer"
+              },
+              "id": "distinct+offersign.id",
+              "field_name": "count_1629116885244"
+            }
+          ],
+          "common_date_arr": [
+            {
+              "model": "offersign",
+              "field": "signDate"
+            }
+          ],
+          "common_field_map": {
+            "jobsubmission": {
+              "model": "jobsubmission",
+              "field": "id"
+            },
+            "position": {
+              "model": "jobsubmission",
+              "field": "position"
+            },
+            "channel": {
+              "model": "jobsubmission",
+              "field": "channel"
+            },
+            "glluemeuser": {
+              "model": "jobsubmission",
+              "field": "glluemeuser"
+            },
+            "careertalk": {
+              "model": "jobsubmission",
+              "field": "careertalk"
+            },
+            "joborder": {
+              "model": "jobsubmission",
+              "field": "joborder"
+            },
+            "candidate": {
+              "model": "jobsubmission",
+              "field": "candidate"
+            },
+            "user": {
+              "model": "offersign",
+              "field": "user"
+            },
+            "portalapply": {
+              "model": "jobsubmission",
+              "field": "portalapply"
+            },
+            "test": {
+              "model": "jobsubmission",
+              "field": "test"
+            },
+            "minipositionapply": {
+              "model": "jobsubmission",
+              "field": "mini_position_apply"
+            },
+            "client": {
+              "model": "joborder",
+              "field": "client"
+            },
+            "expressionrulegroup": {
+              "model": "joborder",
+              "field": "rating_rule"
+            },
+            "resumefilterrule": {
+              "model": "joborder",
+              "field": "resume_filter_rule"
+            },
+            "campusrecruitment": {
+              "model": "joborder",
+              "field": "campusrecruitment"
+            },
+            "clientcontract": {
+              "model": "joborder",
+              "field": "contract"
+            },
+            "team": {
+              "model": "joborder",
+              "field": "team"
+            },
+            "joborderuser": {
+              "model": "joborderuser",
+              "field": "id"
+            },
+            "offersign": {
+              "model": "offersign",
+              "field": "id"
+            },
+            "offersignfeedback": {
+              "model": "offersign",
+              "field": "feedback"
+            },
+            "offersigncandidatefeedback": {
+              "model": "offersign",
+              "field": "candidatefeedback"
+            },
+            "recruitmentneeds": {
+              "model": "offersign",
+              "field": "recruitmentneeds"
+            },
+            "siteresume": {
+              "model": "jobsubmission",
+              "field": "siteresume"
+            },
+            "function": {
+              "model": "joborder",
+              "field": "function"
+            },
+            "industry": {
+              "model": "joborder",
+              "field": "industry"
+            },
+            "workflowdefinition": {
+              "model": "joborder",
+              "field": "workflow_spec"
+            }
+          },
+          "query_filters": "offersign__user__team__children=%7B%7Buser.team.id%7D%7D&offersign__user__status__s=Active&offersign__signDate__this_year=&offersign__active__eq=1",
+          "persist_query_filters": "offersign__user__team__children=%7B%7Buser.team.id%7D%7D&offersign__user__status__s=Active&offersign__signDate__this_year=",
+          "group_fields": [
+            {
+              "model": "offersign",
+              "field": "signDate",
+              "date_group_type": "week"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "offersign",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                964,
+                954,
+                952,
+                951,
+                946,
+                933,
+                927,
+                917,
+                898,
+                875,
+                851,
+                845,
+                761,
+                751,
+                750
+              ]
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "invoice",
+          "field": "paymentReceivedDate",
+          "name": "paymentReceivedDate",
+          "date_group_type": "week",
+          "label": {
+            "zh_CN": "日期",
+            "en": "Date",
+            "zh_TW": "日期"
+          },
+          "path": [],
+          "sort": "__self__|asc"
+        },
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "User",
+            "zh_TW": "用戶"
+          },
+          "path": [],
+          "sortByContext": {
+            "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active"
+          },
+          "sortByList": [
+            970,
+            969,
+            968,
+            967,
+            964,
+            954,
+            952,
+            951,
+            946,
+            933,
+            927,
+            917,
+            898,
+            875,
+            851,
+            845,
+            761,
+            751,
+            750
+          ]
+        }
+      ],
+      "subtotalInfos": [
+        {
+          "group_by_idx": [
+            0
+          ]
+        }
+      ],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -126
+    }
+  },
+  {
+    "name": "invoice_invoiceassignment",
+    "label": "发票+-+业绩分配",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "已到款",
+                "zh_TW": "已到款",
+                "en": "Received"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "count_1628477019176",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=Received&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__paymentReceivedDate__this_year=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "paymentReceivedDate"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__paymentReceivedDate__this_year=",
+          "group_fields": [
+            {
+              "model": "invoice",
+              "field": "paymentReceivedDate",
+              "date_group_type": "month"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "invoice",
+          "field": "paymentReceivedDate",
+          "name": "paymentReceivedDate",
+          "date_group_type": "month",
+          "label": {
+            "zh_CN": "日期",
+            "en": "Date",
+            "zh_TW": "日期"
+          },
+          "path": [],
+          "sort": "__self__|asc"
+        },
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "User",
+            "zh_TW": "用戶"
+          },
+          "path": [],
+          "sortByContext": {
+            "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+          },
+          "sortByList": [
+            970,
+            969,
+            968,
+            967,
+            966,
+            965,
+            964,
+            963,
+            962,
+            961,
+            959,
+            958,
+            957,
+            956,
+            955,
+            954,
+            953,
+            952,
+            951,
+            950,
+            949,
+            948,
+            947,
+            946,
+            945,
+            944,
+            943,
+            942,
+            941,
+            940,
+            939,
+            937,
+            936,
+            935,
+            934,
+            933,
+            932,
+            931,
+            930,
+            929,
+            928,
+            927,
+            926,
+            925,
+            923,
+            922,
+            921,
+            920,
+            919,
+            918,
+            917,
+            916,
+            910,
+            908,
+            906,
+            905,
+            903,
+            901,
+            900,
+            899,
+            898,
+            897,
+            894,
+            892,
+            890,
+            889,
+            887,
+            885,
+            883,
+            882,
+            875,
+            874,
+            873,
+            872,
+            868,
+            865,
+            863,
+            861,
+            859,
+            858,
+            857,
+            856,
+            855,
+            854,
+            851,
+            848,
+            847,
+            846,
+            845,
+            844,
+            843,
+            842,
+            840,
+            839,
+            838,
+            837,
+            836,
+            835,
+            834,
+            833,
+            832,
+            831,
+            830,
+            829,
+            828,
+            827,
+            826,
+            824,
+            823,
+            822,
+            821,
+            820,
+            819,
+            818,
+            817,
+            816,
+            814,
+            813,
+            810,
+            809,
+            808,
+            805,
+            804,
+            798,
+            797,
+            796,
+            793,
+            792,
+            791,
+            790,
+            789,
+            788,
+            787,
+            786,
+            785,
+            784,
+            783,
+            781,
+            780,
+            779,
+            778,
+            777,
+            774,
+            773,
+            772,
+            771,
+            768,
+            767,
+            765,
+            762,
+            761,
+            760,
+            759,
+            758,
+            757,
+            756,
+            755,
+            754,
+            753,
+            752,
+            751,
+            750,
+            749,
+            745
+          ]
+        }
+      ],
+      "subtotalInfos": [
+        {
+          "group_by_idx": [
+            0
+          ]
+        }
+      ],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -124
+    }
+  },
+  {
+    "name": "invoice_invoiceassignment",
+    "label": "发票+-+业绩分配",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "未开票",
+                "zh_TW": "未開票",
+                "en": "Uninvoiced"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "count_1628477019176",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=Invoice%20Added&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "dateAdded"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "group_fields": [
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        },
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "待开票",
+                "zh_TW": "待開票",
+                "en": "To+be+invoiced"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "dup_g0hu_OWcRU",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=To%20be%20sent&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "dateAdded"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "group_fields": [
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        },
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "应收款",
+                "zh_TW": "應收款",
+                "en": "Receivables"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "dup_gWGvBuV_FA",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=Sent&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "dateAdded"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "group_fields": [
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "User",
+            "zh_TW": "用戶"
+          },
+          "path": [],
+          "sortByContext": {
+            "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+          },
+          "sortByList": [
+            970,
+            969,
+            968,
+            967,
+            966,
+            965,
+            964,
+            963,
+            962,
+            961,
+            959,
+            958,
+            957,
+            956,
+            955,
+            954,
+            953,
+            952,
+            951,
+            950,
+            949,
+            948,
+            947,
+            946,
+            945,
+            944,
+            943,
+            942,
+            941,
+            940,
+            939,
+            937,
+            936,
+            935,
+            934,
+            933,
+            932,
+            931,
+            930,
+            929,
+            928,
+            927,
+            926,
+            925,
+            923,
+            922,
+            921,
+            920,
+            919,
+            918,
+            917,
+            916,
+            910,
+            908,
+            906,
+            905,
+            903,
+            901,
+            900,
+            899,
+            898,
+            897,
+            894,
+            892,
+            890,
+            889,
+            887,
+            885,
+            883,
+            882,
+            875,
+            874,
+            873,
+            872,
+            868,
+            865,
+            863,
+            861,
+            859,
+            858,
+            857,
+            856,
+            855,
+            854,
+            851,
+            848,
+            847,
+            846,
+            845,
+            844,
+            843,
+            842,
+            840,
+            839,
+            838,
+            837,
+            836,
+            835,
+            834,
+            833,
+            832,
+            831,
+            830,
+            829,
+            828,
+            827,
+            826,
+            824,
+            823,
+            822,
+            821,
+            820,
+            819,
+            818,
+            817,
+            816,
+            814,
+            813,
+            810,
+            809,
+            808,
+            805,
+            804,
+            798,
+            797,
+            796,
+            793,
+            792,
+            791,
+            790,
+            789,
+            788,
+            787,
+            786,
+            785,
+            784,
+            783,
+            781,
+            780,
+            779,
+            778,
+            777,
+            774,
+            773,
+            772,
+            771,
+            768,
+            767,
+            765,
+            762,
+            761,
+            760,
+            759,
+            758,
+            757,
+            756,
+            755,
+            754,
+            753,
+            752,
+            751,
+            750,
+            749,
+            745
+          ]
+        }
+      ],
+      "subtotalInfos": [],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -123
+    }
+  },
+  {
+    "name": "invoice_invoiceassignment",
+    "label": "发票+-+业绩分配",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "已到款",
+                "zh_TW": "已到款",
+                "en": "Received"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "count_1628477019176",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=Received&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__paymentReceivedDate__this_year=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "paymentReceivedDate"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__paymentReceivedDate__this_year=",
+          "group_fields": [
+            {
+              "model": "invoice",
+              "field": "paymentReceivedDate",
+              "date_group_type": "month"
+            },
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "invoice",
+          "field": "paymentReceivedDate",
+          "name": "paymentReceivedDate",
+          "date_group_type": "month",
+          "label": {
+            "zh_CN": "日期",
+            "en": "Date",
+            "zh_TW": "日期"
+          },
+          "path": [],
+          "sort": "__self__|asc"
+        },
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "User",
+            "zh_TW": "用戶"
+          },
+          "path": [],
+          "sortByContext": {
+            "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+          },
+          "sortByList": [
+            970,
+            969,
+            968,
+            967,
+            966,
+            965,
+            964,
+            963,
+            962,
+            961,
+            959,
+            958,
+            957,
+            956,
+            955,
+            954,
+            953,
+            952,
+            951,
+            950,
+            949,
+            948,
+            947,
+            946,
+            945,
+            944,
+            943,
+            942,
+            941,
+            940,
+            939,
+            937,
+            936,
+            935,
+            934,
+            933,
+            932,
+            931,
+            930,
+            929,
+            928,
+            927,
+            926,
+            925,
+            923,
+            922,
+            921,
+            920,
+            919,
+            918,
+            917,
+            916,
+            910,
+            908,
+            906,
+            905,
+            903,
+            901,
+            900,
+            899,
+            898,
+            897,
+            894,
+            892,
+            890,
+            889,
+            887,
+            885,
+            883,
+            882,
+            875,
+            874,
+            873,
+            872,
+            868,
+            865,
+            863,
+            861,
+            859,
+            858,
+            857,
+            856,
+            855,
+            854,
+            851,
+            848,
+            847,
+            846,
+            845,
+            844,
+            843,
+            842,
+            840,
+            839,
+            838,
+            837,
+            836,
+            835,
+            834,
+            833,
+            832,
+            831,
+            830,
+            829,
+            828,
+            827,
+            826,
+            824,
+            823,
+            822,
+            821,
+            820,
+            819,
+            818,
+            817,
+            816,
+            814,
+            813,
+            810,
+            809,
+            808,
+            805,
+            804,
+            798,
+            797,
+            796,
+            793,
+            792,
+            791,
+            790,
+            789,
+            788,
+            787,
+            786,
+            785,
+            784,
+            783,
+            781,
+            780,
+            779,
+            778,
+            777,
+            774,
+            773,
+            772,
+            771,
+            768,
+            767,
+            765,
+            762,
+            761,
+            760,
+            759,
+            758,
+            757,
+            756,
+            755,
+            754,
+            753,
+            752,
+            751,
+            750,
+            749,
+            745
+          ]
+        }
+      ],
+      "subtotalInfos": [
+        {
+          "group_by_idx": [
+            0
+          ]
+        }
+      ],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -124
+    }
+  },
+  {
+    "name": "invoice_invoiceassignment",
+    "label": "发票+-+业绩分配",
+    "full": {
+      "joinedTemplateInfo": [
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "未开票",
+                "zh_TW": "未開票",
+                "en": "Uninvoiced"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "count_1628477019176",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=Invoice%20Added&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "dateAdded"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "group_fields": [
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        },
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "待开票",
+                "zh_TW": "待開票",
+                "en": "To+be+invoiced"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "dup_g0hu_OWcRU",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=To%20be%20sent&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "dateAdded"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "group_fields": [
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        },
+        {
+          "template": {
+            "id": -59,
+            "name": "invoice_invoiceassignment",
+            "group": "invoice",
+            "available_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "analysis_models": [
+              "invoice",
+              "invoiceassignment"
+            ],
+            "alias": "invoice:t1,invoiceassignment:t2",
+            "join_condition": "t1.`id`+=+t2.`invoice_id`",
+            "default_date_field": "",
+            "detail_model": "invoiceassignment",
+            "template_display_info": "",
+            "reverseAlias": {
+              "t1": "invoice",
+              "t2": "invoiceassignment"
+            },
+            "label": "发票+-+业绩分配"
+          },
+          "aggregation_fields": [
+            {
+              "type": "custom",
+              "value": "sum(invoiceassignment.revenue)",
+              "label": {
+                "zh_CN": "应收款",
+                "zh_TW": "應收款",
+                "en": "Receivables"
+              },
+              "id": "distinct+invoiceassignment.id",
+              "field_name": "dup_gWGvBuV_FA",
+              "repr_function": "${currencyFormat(value,+'CNY',+0,+2)}"
+            }
+          ],
+          "query_filters": "invoice__status__s=Sent&invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "common_date_arr": [
+            {
+              "model": "invoice",
+              "field": "dateAdded"
+            }
+          ],
+          "common_field_map": {
+            "invoice": {
+              "model": "invoice",
+              "field": "id"
+            },
+            "client": {
+              "model": "invoice",
+              "field": "client"
+            },
+            "joborder": {
+              "model": "invoice",
+              "field": "joborder"
+            },
+            "jobsubmission": {
+              "model": "invoice",
+              "field": "jobsubmission"
+            },
+            "user": {
+              "model": "invoiceassignment",
+              "field": "user"
+            },
+            "billinginfo": {
+              "model": "invoice",
+              "field": "billing"
+            },
+            "clientcontract": {
+              "model": "invoice",
+              "field": "contract"
+            },
+            "clientcontractcharge": {
+              "model": "invoice",
+              "field": "contract_charge"
+            },
+            "invoiceassignment": {
+              "model": "invoiceassignment",
+              "field": "id"
+            },
+            "team": {
+              "model": "invoiceassignment",
+              "field": "belong_team"
+            }
+          },
+          "persist_query_filters": "invoiceassignment__user__team__children=%7B%7Buser.team.id%7D%7D&invoiceassignment__user__status__s=Active%2CInactive%2CLeave&invoice__dateAdded__all_time=",
+          "group_fields": [
+            {
+              "model": "user",
+              "name": "id",
+              "field": "id",
+              "label": {
+                "zh_CN": "用户",
+                "en": "User",
+                "zh_TW": "用戶"
+              },
+              "path": [
+                {
+                  "model": "invoiceassignment",
+                  "name": "user",
+                  "is_reverse_fk": false
+                }
+              ],
+              "sortByContext": {
+                "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+              },
+              "sortByList": [
+                970,
+                969,
+                968,
+                967,
+                966,
+                965,
+                964,
+                963,
+                962,
+                961,
+                959,
+                958,
+                957,
+                956,
+                955,
+                954,
+                953,
+                952,
+                951,
+                950,
+                949,
+                948,
+                947,
+                946,
+                945,
+                944,
+                943,
+                942,
+                941,
+                940,
+                939,
+                937,
+                936,
+                935,
+                934,
+                933,
+                932,
+                931,
+                930,
+                929,
+                928,
+                927,
+                926,
+                925,
+                923,
+                922,
+                921,
+                920,
+                919,
+                918,
+                917,
+                916,
+                910,
+                908,
+                906,
+                905,
+                903,
+                901,
+                900,
+                899,
+                898,
+                897,
+                894,
+                892,
+                890,
+                889,
+                887,
+                885,
+                883,
+                882,
+                875,
+                874,
+                873,
+                872,
+                868,
+                865,
+                863,
+                861,
+                859,
+                858,
+                857,
+                856,
+                855,
+                854,
+                851,
+                848,
+                847,
+                846,
+                845,
+                844,
+                843,
+                842,
+                840,
+                839,
+                838,
+                837,
+                836,
+                835,
+                834,
+                833,
+                832,
+                831,
+                830,
+                829,
+                828,
+                827,
+                826,
+                824,
+                823,
+                822,
+                821,
+                820,
+                819,
+                818,
+                817,
+                816,
+                814,
+                813,
+                810,
+                809,
+                808,
+                805,
+                804,
+                798,
+                797,
+                796,
+                793,
+                792,
+                791,
+                790,
+                789,
+                788,
+                787,
+                786,
+                785,
+                784,
+                783,
+                781,
+                780,
+                779,
+                778,
+                777,
+                774,
+                773,
+                772,
+                771,
+                768,
+                767,
+                765,
+                762,
+                761,
+                760,
+                759,
+                758,
+                757,
+                756,
+                755,
+                754,
+                753,
+                752,
+                751,
+                750,
+                749,
+                745
+              ]
+            }
+          ]
+        }
+      ],
+      "joinedGroupFields": [
+        {
+          "model": "user",
+          "name": "id",
+          "field": "id",
+          "label": {
+            "zh_CN": "用户",
+            "en": "User",
+            "zh_TW": "用戶"
+          },
+          "path": [],
+          "sortByContext": {
+            "gql": "team__children=%7B%7Buser.team.id%7D%7D&status__s=Active%2CInactive%2CLeave"
+          },
+          "sortByList": [
+            970,
+            969,
+            968,
+            967,
+            966,
+            965,
+            964,
+            963,
+            962,
+            961,
+            959,
+            958,
+            957,
+            956,
+            955,
+            954,
+            953,
+            952,
+            951,
+            950,
+            949,
+            948,
+            947,
+            946,
+            945,
+            944,
+            943,
+            942,
+            941,
+            940,
+            939,
+            937,
+            936,
+            935,
+            934,
+            933,
+            932,
+            931,
+            930,
+            929,
+            928,
+            927,
+            926,
+            925,
+            923,
+            922,
+            921,
+            920,
+            919,
+            918,
+            917,
+            916,
+            910,
+            908,
+            906,
+            905,
+            903,
+            901,
+            900,
+            899,
+            898,
+            897,
+            894,
+            892,
+            890,
+            889,
+            887,
+            885,
+            883,
+            882,
+            875,
+            874,
+            873,
+            872,
+            868,
+            865,
+            863,
+            861,
+            859,
+            858,
+            857,
+            856,
+            855,
+            854,
+            851,
+            848,
+            847,
+            846,
+            845,
+            844,
+            843,
+            842,
+            840,
+            839,
+            838,
+            837,
+            836,
+            835,
+            834,
+            833,
+            832,
+            831,
+            830,
+            829,
+            828,
+            827,
+            826,
+            824,
+            823,
+            822,
+            821,
+            820,
+            819,
+            818,
+            817,
+            816,
+            814,
+            813,
+            810,
+            809,
+            808,
+            805,
+            804,
+            798,
+            797,
+            796,
+            793,
+            792,
+            791,
+            790,
+            789,
+            788,
+            787,
+            786,
+            785,
+            784,
+            783,
+            781,
+            780,
+            779,
+            778,
+            777,
+            774,
+            773,
+            772,
+            771,
+            768,
+            767,
+            765,
+            762,
+            761,
+            760,
+            759,
+            758,
+            757,
+            756,
+            755,
+            754,
+            753,
+            752,
+            751,
+            750,
+            749,
+            745
+          ]
+        }
+      ],
+      "subtotalInfos": [],
+      "limitData": false,
+      "extraCommonGQL": "",
+      "report_id": -123
+    }
+  }
+]

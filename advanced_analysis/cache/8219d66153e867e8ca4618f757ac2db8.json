@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-25T21:11:57.020947", "sql": "SELECT ia.id, ia.user_id, ia.revenue, ia.invoice_status, ia.dateAdded FROM invoiceassignment ia LIMIT 3"}

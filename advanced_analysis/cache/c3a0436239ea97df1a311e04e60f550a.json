@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-25T21:12:44.319598", "sql": "SELECT COUNT(*) as cnt FROM invoiceassignment"}

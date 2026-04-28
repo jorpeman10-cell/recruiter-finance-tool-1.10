@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-28T18:38:26.430326", "sql": "\n                    SELECT i.id, i.invoice_number, i.invoice_status, i.amount,\n                           i.dateAdded as invoice_date, i.expected_payment_date,\n                           DATEDIFF(CUR"}

@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-25T21:37:35.715991", "sql": "\n            SELECT DISTINCT u.id, u.englishName, u.chineseName, u.team_id, u.status,\n                   u.joinInDate, u.leaveDate\n            FROM user u\n            WHERE u.status = 'Active'\n       "}

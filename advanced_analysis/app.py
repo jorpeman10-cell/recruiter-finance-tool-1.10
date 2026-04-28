@@ -2288,11 +2288,11 @@ def main():
         render_real_finance_page(st.session_state.analyzer)
     
     with tab6:
-        from pages.okr_page import render_okr_page
-        render_okr_page()
+        render_whatif_simulator()
     
     with tab7:
-        render_whatif_simulator()
+        from pages.okr_page import render_okr_page
+        render_okr_page()
 
 
 def render_mapping_analysis():

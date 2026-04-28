@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-28T18:37:24.801939", "sql": "\n            SELECT fa.user_id, f.forecast_fee, f.last_stage, f.close_date,\n                   fa.amount_after_tax, fa.role,\n                   CONCAT(IFNULL(u.englishName, ''), ' ', IFNULL(u.chineseN"}

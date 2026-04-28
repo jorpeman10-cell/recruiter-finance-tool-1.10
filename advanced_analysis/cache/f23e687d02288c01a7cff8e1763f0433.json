@@ -1,0 +1,1 @@
+{"timestamp": "2026-04-25T20:09:28.139539", "sql": "SELECT status, COUNT(*) as cnt FROM user GROUP BY status"}
